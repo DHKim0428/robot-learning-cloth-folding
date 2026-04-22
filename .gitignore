@@ -14,6 +14,9 @@ venv/
 # Project-local agent memory
 AGENT_WORKBOOK.md
 
+# Local machine-specific robot config
+config/so101_ports.json
+
 # Data / artifacts / logs
 wandb/
 outputs/
