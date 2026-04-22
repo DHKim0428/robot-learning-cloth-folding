@@ -1,48 +1,14 @@
 # SO101 config
 
-## MotorsBus(Port)
+## MotorsBus ports
 
-* Follower arm: `/dev/tty.usbmodem5B141136491`
-* Leader arm: `/dev/tty.usbmodem5B141123031`
+MotorBus ports are machine-specific and may change across computers, USB ports, or adapters.
+Do **not** rely on hardcoded `/dev/tty...` values from someone else's machine.
 
-
-## Motor reset commands
-
-### Follower
-```bash
-lerobot-setup-motors \
-    --robot.type=so101_follower \
-    --robot.port=/dev/tty.usbmodem5B141136491
-```
-
-### Leader
-```bash
-lerobot-setup-motors \
-    --teleop.type=so101_leader \
-    --teleop.port=/dev/tty.usbmodem5B141123031
-```
-
-
-## Motor Calibration commands
-
-### Follower
-```bash
-lerobot-calibrate \
-    --robot.type=so101_follower \
-    --robot.port=/dev/tty.usbmodem5B141136491
-    --robot.id=follower
-```
-
-### Leader
-```bash
-lerobot-calibrate \
-    --teleop.type=so101_leader \
-    --teleop.port=/dev/tty.usbmodem5B141123031
-    --teleop.id=leader
-```
-
-
-## Project scripts
+For this repo, the expected workflow is:
+1. detect the current leader/follower ports
+2. write them to `config/so101_ports.json`
+3. use the project scripts, which read that file automatically
 
 ### Detect and write ports config
 
@@ -70,6 +36,9 @@ How it works:
 - then it repeats the same process for the follower
 - finally it saves the detected ports as JSON
 
+
+## Project scripts
+
 ### Setup motors
 ```bash
 python scripts/setup_motor.py follower
@@ -82,6 +51,9 @@ python scripts/calibrate_motor.py follower
 python scripts/calibrate_motor.py leader
 ```
 
+These scripts read `config/so101_ports.json`, so they should be run **after**
+`python scripts/detect_ports.py`.
+
 ### Teleoperation
 
 Without camera:
@@ -92,6 +64,40 @@ python scripts/teleop.py
 With camera:
 ```bash
 python scripts/teleop.py --camera
+```
+
+### Equivalent raw LeRobot CLI commands
+
+If needed, the corresponding raw LeRobot commands are:
+
+Follower setup:
+```bash
+lerobot-setup-motors \
+    --robot.type=so101_follower \
+    --robot.port=<follower_port>
+```
+
+Leader setup:
+```bash
+lerobot-setup-motors \
+    --teleop.type=so101_leader \
+    --teleop.port=<leader_port>
+```
+
+Follower calibration:
+```bash
+lerobot-calibrate \
+    --robot.type=so101_follower \
+    --robot.port=<follower_port> \
+    --robot.id=follower
+```
+
+Leader calibration:
+```bash
+lerobot-calibrate \
+    --teleop.type=so101_leader \
+    --teleop.port=<leader_port> \
+    --teleop.id=leader
 ```
 
 ### Record teleoperation dataset
