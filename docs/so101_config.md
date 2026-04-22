@@ -172,3 +172,13 @@ Upload notes:
 - `--push-to-hub` requires `--dataset-repo-id` to be a real Hugging Face repo id like `<hf_username>/<dataset_name>`
 - the default `local/so101_teleop` is only for local testing
 - token lookup order: `HF_TOKEN`, then `HUGGINGFACE_HUB_TOKEN`
+
+
+## TODO
+
+- Move SO-101 calibration files into a project-local directory instead of the default temporary/cache location.
+- Do this by setting the same `calibration_dir` consistently across calibration and runtime scripts, rather than only moving files manually after calibration.
+- Update at least:
+  - `scripts/calibrate_motor.py`
+  - `scripts/teleop.py`
+  - `scripts/teleop_record.py`
