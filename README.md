@@ -3,64 +3,56 @@
 Repository for Team 43's ETH Robot Learning project on cloth folding.
 
 ## Current goal
-Our near-term goal is to choose a practical first method, collect an initial dataset, and get a first training/evaluation loop running as early as possible.
-
-## Current working assumption
-A reasonable near-term workflow is:
-1. clarify team ownership and project scope
-2. read a small set of key papers
-3. choose the first baseline / starting policy
-4. prepare data collection
-5. run first training
-6. test, debug, and tune
+Our near-term goal is to collect an initial dataset this week and get multiple first training attempts running as early as possible.
 
 ## This week's priorities
-- align on ambition level and ownership
-- assign paper reading
-- decide the first baseline candidate
-- prepare environment and data collection plan
-- identify the fastest path to a first end-to-end run
+- finalize the data collection workflow
+- collect an initial dataset
+- have different team members try different model/training setups
+- get the first end-to-end training runs working
+- compare early results and decide what to scale up
 
 ## Important docs
 - `docs/project_info.md` — project rules summary
 - `docs/so101_config.md` — SO-101 setup notes
-- `docs/Robot_Learning_FS26_Brev_Instruction.pdf` — instructions for using the course computing resources
-- `docs/BRAINSTORMING_NOTES_2026-04-20.md` — early personal brainstorming notes
 - `docs/PROJECT_QUESTION_LIST.md` — open questions for TAs / team
-- `papers/README.md` — paper list, reading plan, and assignments
+- `papers/README.md` — paper notes and references
 
-## Paper reading plan
-We do **not** want everyone reading completely different things with no shared context.
+## SO-101 quickstart
+For day-to-day robot setup and data collection, see `docs/so101_config.md`.
 
-Recommended structure:
-- **shared core paper**: everyone reads 1 common paper
-- **owner paper**: each member reads 1 additional paper and reports back
+Common commands:
+- detect ports and write `config/so101_ports.json`
+- setup / calibrate leader and follower motors
+- teleoperate with or without camera
+- record a local dataset under `data/lerobot/`
+- optionally push a recorded dataset to Hugging Face
 
-Current recommendation:
-- shared core: **Diffusion Policy**
-- owner papers: **SmolVLA, pi0.5**
+Main scripts:
+- `scripts/detect_ports.py`
+- `scripts/setup_motor.py`
+- `scripts/calibrate_motor.py`
+- `scripts/teleop.py`
+- `scripts/teleop_record.py`
 
-See `papers/README.md` for the current two-track reading plan and suggested assignments.
+## Repository structure
+- `docs/` — project notes, setup notes, and decisions
+- `papers/` — optional paper notes and references
+- `scripts/` — robot setup, teleoperation, and data collection scripts
+- `config/` — local configuration templates and port files
+- `data/lerobot/` — local LeRobot-format recordings (gitignored)
 
-## Team workflow
+## Working conventions
 - keep project notes and decisions in `docs/`
-- keep paper notes and reading assignments in `papers/`
 - keep large datasets, checkpoints, and logs out of git
-- prefer small, concrete next steps over broad vague plans
-
-## Initial ownership ideas
-To be decided as a team, but likely buckets are:
-- environment / setup
-- data collection
-- first baseline training
-- evaluation / testing
-- experiment tracking / notes
+- keep local LeRobot recordings under `data/lerobot/`
+- keep machine-specific secrets and tokens out of git; use env files or shell exports instead
+- prefer small, concrete updates over large undocumented changes
 
 ## Success for the first phase
 A good first milestone is **not** a polished final method.
 A good first milestone is:
-- one chosen starting policy
 - a small initial dataset
-- one training run
-- one test result
+- multiple first training runs from different model choices
+- one or more early test results
 - one clear list of failure modes

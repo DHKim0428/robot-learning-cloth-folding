@@ -38,6 +38,8 @@ results/
 !/data/processed/.gitkeep
 /data/teleop/*
 !/data/teleop/.gitkeep
+/data/lerobot/*
+!/data/lerobot/.gitkeep
 
 # Course computing-resource instructions PDF
 docs/Robot_Learning_FS26_Brev_Instruction.pdf
