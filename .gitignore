@@ -1,0 +1,43 @@
+# macOS / editor
+.DS_Store
+.vscode/
+.idea/
+
+# Python
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.venv/
+venv/
+.env
+
+# Project-local agent memory
+AGENT_WORKBOOK.md
+
+# Data / artifacts / logs
+wandb/
+outputs/
+logs/
+checkpoints/
+models/
+results/
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.npz
+*.npy
+*.pkl
+*.h5
+*.onnx
+
+# Keep folder structure, ignore bulky data contents
+/data/raw/*
+!/data/raw/.gitkeep
+/data/processed/*
+!/data/processed/.gitkeep
+/data/teleop/*
+!/data/teleop/.gitkeep
+
+# Course computing-resource instructions PDF
+docs/Robot_Learning_FS26_Brev_Instruction.pdf
