@@ -2,7 +2,7 @@ import argparse
 import time
 from pathlib import Path
 
-from script_utils import DEFAULT_DATASET_ROOT, DEFAULT_PORTS_PATH, load_ports
+from script_utils import DEFAULT_DATASET_ROOT, DEFAULT_PORTS_PATH, follower_config_kwargs, load_ports
 
 
 DEFAULT_DATASET_REPO_ID = "local/so101_teleop"
@@ -57,8 +57,7 @@ def main() -> None:
     ports = load_ports(args.config)
     dataset_root = args.dataset_root / args.dataset_repo_id
 
-    robot_config = SO101FollowerConfig(port=ports["follower"], id="follower")
-    robot = SO101Follower(robot_config)
+    robot = SO101Follower(SO101FollowerConfig(**follower_config_kwargs(ports["follower"])))
 
     dataset = LeRobotDataset(
         args.dataset_repo_id,

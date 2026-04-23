@@ -1,14 +1,15 @@
 import argparse
 from pathlib import Path
 
-from script_utils import DEFAULT_PORTS_PATH, load_ports
+from script_utils import DEFAULT_PORTS_PATH, follower_config_kwargs, leader_config_kwargs, load_ports
 
 
 def build_follower_config(args: argparse.Namespace, follower_port: str):
     from lerobot.robots.so_follower import SO101FollowerConfig
 
+    config_kwargs = follower_config_kwargs(follower_port)
     if not args.camera:
-        return SO101FollowerConfig(port=follower_port, id="follower")
+        return SO101FollowerConfig(**config_kwargs)
 
     from lerobot.cameras.opencv.configuration_opencv import OpenCVCameraConfig
 
@@ -21,8 +22,7 @@ def build_follower_config(args: argparse.Namespace, follower_port: str):
         )
     }
     return SO101FollowerConfig(
-        port=follower_port,
-        id="follower",
+        **config_kwargs,
         cameras=camera_config,
     )
 
@@ -33,7 +33,7 @@ def run_teleop(args: argparse.Namespace) -> None:
 
     ports = load_ports(args.config)
     robot_config = build_follower_config(args, ports["follower"])
-    teleop_config = SO101LeaderConfig(port=ports["leader"], id="leader")
+    teleop_config = SO101LeaderConfig(**leader_config_kwargs(ports["leader"]))
 
     robot = SO101Follower(robot_config)
     teleop_device = SO101Leader(teleop_config)

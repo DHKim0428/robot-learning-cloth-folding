@@ -54,6 +54,12 @@ python scripts/calibrate_motor.py leader
 These scripts read `config/so101_ports.json`, so they should be run **after**
 `python scripts/detect_ports.py`.
 
+Calibration files are now read from the project-local directory:
+- `config/calibration/robots/so_follower/follower.json`
+- `config/calibration/teleoperators/so_leader/leader.json`
+
+So if you need to inspect or carefully patch the current calibration JSON by hand, use those files rather than the default Hugging Face cache path.
+
 ### Save a reusable home pose
 
 Move the follower arm to a safe pose manually, then save that pose:
@@ -239,11 +245,3 @@ Upload notes:
 - token lookup order: `HF_TOKEN`, then `HUGGINGFACE_HUB_TOKEN`
 
 
-## TODO
-
-- Move SO-101 calibration files into a project-local directory instead of the default temporary/cache location.
-- Do this by setting the same `calibration_dir` consistently across calibration and runtime scripts, rather than only moving files manually after calibration.
-- Update at least:
-  - `scripts/calibrate_motor.py`
-  - `scripts/teleop.py`
-  - `scripts/teleop_record.py`

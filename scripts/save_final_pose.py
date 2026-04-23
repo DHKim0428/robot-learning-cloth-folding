@@ -1,7 +1,13 @@
 import argparse
 from pathlib import Path
 
-from script_utils import DEFAULT_FINAL_POSE_PATH, DEFAULT_PORTS_PATH, load_ports, save_final_pose
+from script_utils import (
+    DEFAULT_FINAL_POSE_PATH,
+    DEFAULT_PORTS_PATH,
+    follower_config_kwargs,
+    load_ports,
+    save_final_pose,
+)
 
 
 def extract_joint_pose(observation: dict[str, object]) -> dict[str, float]:
@@ -37,7 +43,7 @@ def main() -> None:
     from lerobot.robots.so_follower import SO101Follower, SO101FollowerConfig
 
     ports = load_ports(args.config)
-    robot = SO101Follower(SO101FollowerConfig(port=ports["follower"], id="follower"))
+    robot = SO101Follower(SO101FollowerConfig(**follower_config_kwargs(ports["follower"])))
     robot.connect()
 
     try:

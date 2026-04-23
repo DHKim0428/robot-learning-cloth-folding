@@ -4,6 +4,9 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_PORTS_PATH = PROJECT_ROOT / "config" / "so101_ports.json"
+DEFAULT_CALIBRATION_ROOT = PROJECT_ROOT / "config" / "calibration"
+DEFAULT_FOLLOWER_CALIBRATION_DIR = DEFAULT_CALIBRATION_ROOT / "robots" / "so_follower"
+DEFAULT_LEADER_CALIBRATION_DIR = DEFAULT_CALIBRATION_ROOT / "teleoperators" / "so_leader"
 DEFAULT_HOME_POSE_PATH = PROJECT_ROOT / "config" / "so101_home_pose.json"
 DEFAULT_FINAL_POSE_PATH = PROJECT_ROOT / "config" / "so101_final_pose.json"
 DEFAULT_DATASET_ROOT = PROJECT_ROOT / "data" / "lerobot"
@@ -21,6 +24,22 @@ def load_ports(config_path: Path) -> dict[str, str]:
     return {
         "leader": str(ports["leader"]),
         "follower": str(ports["follower"]),
+    }
+
+
+def follower_config_kwargs(port: str) -> dict[str, object]:
+    return {
+        "port": port,
+        "id": "follower",
+        "calibration_dir": DEFAULT_FOLLOWER_CALIBRATION_DIR,
+    }
+
+
+def leader_config_kwargs(port: str) -> dict[str, object]:
+    return {
+        "port": port,
+        "id": "leader",
+        "calibration_dir": DEFAULT_LEADER_CALIBRATION_DIR,
     }
 
 

@@ -1,20 +1,18 @@
 import argparse
 from pathlib import Path
 
-from script_utils import DEFAULT_PORTS_PATH, load_ports
+from script_utils import DEFAULT_PORTS_PATH, follower_config_kwargs, leader_config_kwargs, load_ports
 
 
 def setup_motor(role: str, port: str) -> None:
     if role == "follower":
         from lerobot.robots.so_follower import SO101Follower, SO101FollowerConfig
 
-        config = SO101FollowerConfig(port=port, id="follower")
-        motor = SO101Follower(config)
+        motor = SO101Follower(SO101FollowerConfig(**follower_config_kwargs(port)))
     else:
         from lerobot.teleoperators.so_leader import SO101Leader, SO101LeaderConfig
 
-        config = SO101LeaderConfig(port=port, id="leader")
-        motor = SO101Leader(config)
+        motor = SO101Leader(SO101LeaderConfig(**leader_config_kwargs(port)))
 
     motor.setup_motors()
 
