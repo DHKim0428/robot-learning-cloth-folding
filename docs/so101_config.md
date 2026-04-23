@@ -17,7 +17,7 @@ Run `export HF_TOKEN=<your_token>` before running the recording script.
 ### Record and push to the shared team dataset
 
 ```bash
-DISPLAY=:1 python scripts/teleop_record.py \
+DISPLAY=$DISPLAY python scripts/teleop_record.py \
     --camera \
     --episode-time-sec 120 \
     --return-move-time-sec 4 \
@@ -28,7 +28,7 @@ DISPLAY=:1 python scripts/teleop_record.py \
 ```
 
 - `--resume` appends your episode to what the team has already recorded — keep it.
-- `DISPLAY=:1` is needed on the Spark machine to connect to the display for camera/rerun visualization.
+- `DISPLAY=$DISPLAY` is needed on the Spark machine to connect to the display for camera/rerun visualization.
 - Make sure your Hugging Face account is a member of the `robot-learning-team43` org, otherwise the push will fail with a 403.
 
 When you see `Reset the environment` printed in the terminal between episodes, that is your cue to reset the towel to the starting position before the next episode begins.
