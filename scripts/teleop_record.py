@@ -274,9 +274,7 @@ def main() -> None:
                 )
 
             prepare_dataset_root_for_create(dataset_root)
-            log_say(
-                "No existing Hub dataset was found. Starting a new local dataset instead."
-            )
+            print("No existing Hub dataset was found. Starting a new local dataset instead.")
             dataset = LeRobotDataset.create(
                 repo_id=args.dataset_repo_id,
                 fps=args.fps,
@@ -338,7 +336,7 @@ def main() -> None:
 
         episode_idx = 0
         while episode_idx < args.num_episodes and not events["stop_recording"]:
-            log_say(f"Recording episode {episode_idx + 1} of {args.num_episodes}")
+            print(f"Recording episode {episode_idx + 1} of {args.num_episodes}")
 
             move_robot_to_pose(robot, teleop.get_action(), args.return_move_time_sec, args.fps)
             record_loop(
@@ -374,7 +372,6 @@ def main() -> None:
                 )
 
             if events["rerecord_episode"]:
-                log_say("Re-recording episode")
                 events["rerecord_episode"] = False
                 events["exit_early"] = False
                 dataset.clear_episode_buffer()
@@ -387,10 +384,10 @@ def main() -> None:
             return_to_pose_if_enabled(args, robot, return_pose)
             episode_idx += 1
     finally:
-        log_say("Stop recording")
+        print("Stop recording")
         dataset.finalize()
         if final_pose is not None:
-            log_say("Returning robot to final pose")
+            print("Returning robot to final pose")
             move_robot_to_pose(
                 robot=robot,
                 target_pose=final_pose,
