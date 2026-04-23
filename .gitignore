@@ -15,7 +15,7 @@ venv/
 AGENT_WORKBOOK.md
 
 # Local machine-specific robot config
-config/so101_ports.json
+#config/so101_ports.json
 
 # Data / artifacts / logs
 wandb/

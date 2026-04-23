@@ -1,0 +1,4 @@
+{
+  "leader": "/dev/ttyACM0",
+  "follower": "/dev/ttyACM1"
+}
