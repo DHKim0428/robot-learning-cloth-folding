@@ -16,8 +16,6 @@ AGENT_WORKBOOK.md
 
 # Local machine-specific robot config
 config/so101_ports.json
-config/so101_home_pose.json
-config/so101_final_pose.json
 
 # Data / artifacts / logs
 wandb/

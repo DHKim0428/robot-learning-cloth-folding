@@ -8,6 +8,8 @@ from script_utils import DEFAULT_PORTS_PATH
 
 
 DEFAULT_OUTPUT_PATH = DEFAULT_PORTS_PATH
+DEFAULT_WAIT_TIMEOUT_SEC = 10.0
+DEFAULT_POLL_INTERVAL_SEC = 0.2
 
 
 def find_available_ports() -> list[str]:
@@ -19,6 +21,38 @@ def find_available_ports() -> list[str]:
     return sorted(str(path) for path in Path("/dev").glob("tty*"))
 
 
+def wait_for_port_state(
+    target_port: str,
+    should_exist: bool,
+    timeout_sec: float = DEFAULT_WAIT_TIMEOUT_SEC,
+    poll_interval_sec: float = DEFAULT_POLL_INTERVAL_SEC,
+) -> bool:
+    deadline = time.time() + timeout_sec
+    while time.time() < deadline:
+        ports = find_available_ports()
+        exists = target_port in ports
+        if exists == should_exist:
+            return True
+        time.sleep(poll_interval_sec)
+    return False
+
+
+def wait_for_removed_ports(
+    ports_before: list[str],
+    timeout_sec: float = DEFAULT_WAIT_TIMEOUT_SEC,
+    poll_interval_sec: float = DEFAULT_POLL_INTERVAL_SEC,
+) -> list[str]:
+    deadline = time.time() + timeout_sec
+    before_set = set(ports_before)
+    while time.time() < deadline:
+        ports_after = find_available_ports()
+        removed_ports = sorted(before_set - set(ports_after))
+        if removed_ports:
+            return removed_ports
+        time.sleep(poll_interval_sec)
+    return []
+
+
 def detect_removed_port(role: str) -> str:
     print(f"\n[{role}] Detecting port...")
     ports_before = find_available_ports()
@@ -27,21 +61,23 @@ def detect_removed_port(role: str) -> str:
         print(f"  - {port}")
 
     input(f"Disconnect the {role} arm USB cable, then press Enter. ")
-    time.sleep(0.5)
-
-    ports_after = find_available_ports()
-    removed_ports = sorted(set(ports_before) - set(ports_after))
+    removed_ports = wait_for_removed_ports(ports_before)
 
     if len(removed_ports) != 1:
         raise RuntimeError(
-            f"Could not uniquely detect the {role} port. Removed ports: {removed_ports}\n"
+            f"Could not uniquely detect the {role} port within {DEFAULT_WAIT_TIMEOUT_SEC:.1f} seconds. "
+            f"Removed ports: {removed_ports}\n"
             "Make sure only that arm was disconnected, then try again."
         )
 
     detected_port = removed_ports[0]
     print(f"Detected {role} port: {detected_port}")
     input(f"Reconnect the {role} arm USB cable, then press Enter to continue. ")
-    time.sleep(0.5)
+    if not wait_for_port_state(detected_port, should_exist=True):
+        raise RuntimeError(
+            f"The {role} port did not reappear within {DEFAULT_WAIT_TIMEOUT_SEC:.1f} seconds after reconnect: {detected_port}"
+        )
+    print(f"Confirmed {role} port reconnected: {detected_port}")
     return detected_port
 
 
