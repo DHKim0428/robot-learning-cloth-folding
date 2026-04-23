@@ -2,15 +2,25 @@
 
 Repository for Team 43's ETH Robot Learning project on cloth folding.
 
-## Current goal
-Our near-term goal is to collect an initial dataset this week and get multiple first training attempts running as early as possible.
+## Current milestone
+Our current milestone is to complete the course-required **sanity-check pipeline** and verify that the full data-to-deployment loop works end to end before investing heavily in the final method.
+
+Current milestone checklist:
+- collect **20 consistent demonstrations** of the task or a simplified version
+- record everything in **LeRobot dataset format v3**
+- replay demonstrations to verify recording correctness
+- upload the dataset to **Brev**
+- train a **simple behavior cloning** model to overfit the demonstrations
+- deploy the trained policy in a matching scene and verify motion reproduction
+- prepare a short **Thursday Slack update** with progress and blockers
 
 ## This week's priorities
-- finalize the data collection workflow
-- collect an initial dataset
-- have different team members try different model/training setups
-- get the first end-to-end training runs working
-- compare early results and decide what to scale up
+- finalize the recording and replay workflow
+- collect the first **20-demo** sanity-check dataset
+- confirm recordings are valid through replay
+- get one simple BC overfit run working on Brev
+- test deployment with matching object/background setup
+- summarize progress and blockers before the Thursday session
 
 ## Important docs
 - `docs/project_info.md` — project rules summary
@@ -48,11 +58,20 @@ Main scripts:
 - keep local LeRobot recordings under `data/lerobot/`
 - keep machine-specific secrets and tokens out of git; use env files or shell exports instead
 - prefer small, concrete updates over large undocumented changes
+- send a short update in the team Slack channel before each Thursday session
 
-## Success for the first phase
-A good first milestone is **not** a polished final method.
-A good first milestone is:
-- a small initial dataset
-- multiple first training runs from different model choices
-- one or more early test results
-- one clear list of failure modes
+## Success for the current milestone
+A good current milestone is **not** a polished final folding policy.
+A good current milestone is:
+- a **20-demo** LeRobot v3 dataset collected successfully
+- replay verification showing the demonstrations were recorded correctly
+- one simple BC training run that clearly overfits or nearly overfits
+- one deployment test in a matching scene
+- one short list of concrete failure modes / blockers to discuss with the TAs
+
+## After this milestone
+Once the sanity-check pipeline works, the next step is to shift back to the actual project objective:
+- focus first on **Eval 1 (grasping)**
+- expand the dataset and scene diversity
+- compare candidate policy families / pretrained starting points
+- iterate toward **single fold** and then **double fold**

@@ -10,6 +10,10 @@ Main milestones:
 
 ## Logistics
 - Join the course Slack channel **`folding_{your team ID}`**. Future clarifications will be shared there.
+- If you did not receive the Slack invitation, contact the course staff / TAs.
+- Before each **Thursday session**, send a short progress update in your group's Slack channel summarizing:
+  - current progress
+  - issues / blockers
 - Teams will receive a **20 cm × 20 cm non-white towel** for the project.
 - The **same towel** will be used across all three main-evaluation milestones.
 - You may use other towels, home setups, and vision/data augmentation for generalization work.
@@ -32,6 +36,9 @@ Training data may come from:
 - publicly available data
 - teleoperation
 - synthetic generation
+
+All demonstrations recorded for the course should use **LeRobot dataset format v3**:
+- https://huggingface.co/docs/lerobot/lerobot-dataset-v3
 
 ## Main evaluation (150 pts)
 All three milestones are evaluated together over **5 total attempts**.  
@@ -88,6 +95,20 @@ Scoring is based on the **run that reaches the furthest milestone**.
 3. Replay a recorded episode to validate the recording pipeline and LeRobot-format data.
 4. Run an overfit test on a single episode.
 5. First focus on **Eval 1 (grasping)**, then iterate toward **Eval 2** and **Eval 3**.
+
+## Required sanity-check steps from the course team
+These were requested as common onboarding steps regardless of project-specific plans:
+
+1. Collect **20 demonstrations** of the task or a simplified version of it with the SO-101 arms.
+2. Keep the motion as simple and consistent as possible across demonstrations.
+3. Replay some demonstrations with the objects in the **same positions/background** used during recording to verify the data was captured correctly.
+4. Upload the demonstrations to **Brev**.
+5. Train a **simple behavior cloning** policy to overfit those demonstrations.
+6. Deploy the trained policy in a matching scene setup and check whether the robot can reproduce the recorded motion.
+
+Notes:
+- This sanity check is meant as an initial pipeline validation, not necessarily the final project method.
+- If nobody in the team has a GPU available for deployment, ask other groups or contact the TAs on Slack.
 
 ## Suggested starting resources
 - **LeRobot:** https://github.com/huggingface/lerobot
