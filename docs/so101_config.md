@@ -1,5 +1,44 @@
 # SO101 config
 
+## Recording on the Spark machine
+
+Before running any robot script on the Spark machine, run these two commands in the terminal you'll use:
+
+```bash
+newgrp dialout
+conda activate lerobot
+```
+
+`newgrp dialout` gives your shell access to the USB serial ports (leader/follower arms) without logging out. You need to run it once per terminal session.
+
+Run `export HF_TOKEN=<your_token>` before running the recording script.
+
+### Record and push to the shared team dataset
+
+```bash
+DISPLAY=:1 python scripts/teleop_record.py \
+    --camera \
+    --episode-time-sec 120 \
+    --return-move-time-sec 4 \
+    --num-episodes 2 \
+    --dataset-repo-id robot-learning-team43/so101_teleop_private \
+    --push-to-hub \
+    --resume
+```
+
+- `--resume` appends your episode to what the team has already recorded — keep it.
+- `DISPLAY=:1` is needed on the Spark machine to connect to the display for camera/rerun visualization.
+- Make sure your Hugging Face account is a member of the `robot-learning-team43` org, otherwise the push will fail with a 403.
+
+When you see `Reset the environment` printed in the terminal between episodes, that is your cue to reset the towel to the starting position before the next episode begins.
+
+**Tip:** start with `--num-episodes 1` to verify everything looks good, then bump the number once you're confident.
+
+**Keyboard controls during recording:**
+- `→` right arrow — finish the episode early (before the time limit)
+- `←` left arrow — discard and re-record the current episode
+- `Esc` — stop the session; previously saved episodes are kept and pushed. The episode currently in progress will be saved as a partial — if you want to avoid that, press `←` first to clear the current buffer, then `Esc`.
+
 ## MotorsBus ports
 
 MotorBus ports are machine-specific and may change across computers, USB ports, or adapters.
