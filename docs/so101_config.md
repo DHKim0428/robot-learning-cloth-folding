@@ -5,6 +5,7 @@
 Before running any robot script on the Spark machine, run these two commands in the terminal you'll use:
 
 ```bash
+cd ~/projects/robot-learning-cloth-folding
 newgrp dialout
 conda activate lerobot
 ```

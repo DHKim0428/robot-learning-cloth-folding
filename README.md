@@ -30,12 +30,14 @@ Current milestone checklist:
 
 ```bash
 # Install conda (aarch64 / Jetson)
+mkdir -p ~/miniconda3
 wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-aarch64.sh -O ~/miniconda3/miniconda.sh
 bash ~/miniconda3/miniconda.sh -b -u -p ~/miniconda3
 ~/miniconda3/bin/conda init bash
 # restart your shell, then:
 
 # Clone lerobot version to install locally to make sure blackwell GPU works
+cd ~/projects
 git clone https://github.com/huggingface/lerobot.git
 git -C lerobot checkout fc6c94c82a4624bdfeffffc7a30dd00c67b2065c
 
