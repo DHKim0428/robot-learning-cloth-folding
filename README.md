@@ -15,21 +15,48 @@ Current milestone checklist:
 - prepare a short **Thursday Slack update** with progress and blockers
 
 ## This week's priorities
-- finalize the recording and replay workflow
-- collect the first **20-demo** sanity-check dataset
-- confirm recordings are valid through replay
-- get one simple BC overfit run working on Brev
-- test deployment with matching object/background setup
-- summarize progress and blockers before the Thursday session
+- [x] finalize the recording and replay workflow
+- [x] collect the first **20-demo** sanity-check dataset
+- [x] confirm 1 recording is valid through replay
+- [ ] quality checking of dataset
+- [ ] get one simple BC overfit run working on Brev
+- [ ] collect minimum 50 demos to train first VLA  
+- [ ] summarize progress and blockers before the Thursday session and write to TA in Slack
 
-## Important docs
-- `docs/project_info.md` — project rules summary
-- `docs/so101_config.md` — SO-101 setup notes
-- `docs/PROJECT_QUESTION_LIST.md` — open questions for TAs / team
-- `papers/README.md` — paper notes and references
+## In ~2-3 weeks
+- [ ] test policy in HG and collect some data there too 
+
+## Setup
+
+```bash
+# Install conda (aarch64 / Jetson)
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-aarch64.sh -O ~/miniconda3/miniconda.sh
+bash ~/miniconda3/miniconda.sh -b -u -p ~/miniconda3
+~/miniconda3/bin/conda init bash
+# restart your shell, then:
+
+# Clone lerobot version to install locally to make sure blackwell GPU works
+git clone https://github.com/huggingface/lerobot.git
+git -C lerobot checkout fc6c94c82a4624bdfeffffc7a30dd00c67b2065c
+
+git clone https://github.com/DHKim0428/robot-learning-cloth-folding.git
+cd robot-learning-cloth-folding
+conda create -y -n lerobot python=3.12
+conda activate lerobot
+conda install ffmpeg -c conda-forge
+pip install torch==2.7.1 torchvision==0.22.1 torchaudio==2.7.1 \
+    --index-url https://download.pytorch.org/whl/cu128
+pip install -e "../lerobot[feetech,training,viz,datasets,diffusion]" \
+    --extra-index-url https://download.pytorch.org/whl/cu128
+pip install pynput
+```
+
+> The `lerobot` source directory must sit **next to** this repo (i.e. `../lerobot`).
 
 ## SO-101 quickstart
-For day-to-day robot setup and data collection, see `docs/so101_config.md`.
+For day-to-day robot setup and data collection, see **[docs/so101_config.md](docs/so101_config.md)**.
+
+To start recording immediately, jump to [Recording on the Spark machine](docs/so101_config.md#recording-on-the-spark-machine).
 
 Common commands:
 - detect ports and write `config/so101_ports.json`
@@ -44,6 +71,12 @@ Main scripts:
 - `scripts/calibrate_motor.py`
 - `scripts/teleop.py`
 - `scripts/teleop_record.py`
+
+## Important docs
+- `docs/project_info.md` — project rules summary
+- `docs/so101_config.md` — SO-101 setup notes
+- `docs/PROJECT_QUESTION_LIST.md` — open questions for TAs / team
+- `papers/README.md` — paper notes and references
 
 ## Repository structure
 - `docs/` — project notes, setup notes, and decisions
