@@ -20,7 +20,7 @@ Current milestone checklist:
 - [x] confirm 1 recording is valid through replay
 - [ ] quality checking of dataset
 - [ ] get one simple BC overfit run working on Brev
-- [ ] collect minimum 50 demos to train first VLA  
+- [ ] collect minimum 50 high-quality demos to train first VLA  
 - [ ] summarize progress and blockers before the Thursday session and write to TA in Slack
 
 ## In ~2-3 weeks
@@ -58,32 +58,25 @@ For day-to-day robot setup and data collection, see **[docs/so101_config.md](doc
 
 To start recording immediately, jump to [Recording on the Spark machine](docs/so101_config.md#recording-on-the-spark-machine).
 
-Common commands:
-- detect ports and write `config/so101_ports.json`
-- setup / calibrate leader and follower motors
-- teleoperate with or without camera
-- record a local dataset under `data/lerobot/`
-- optionally push a recorded dataset to Hugging Face
-
-Main scripts:
-- `scripts/detect_ports.py`
-- `scripts/setup_motor.py`
-- `scripts/calibrate_motor.py`
-- `scripts/teleop.py`
-- `scripts/teleop_record.py`
-
-## Important docs
-- `docs/project_info.md` — project rules summary
-- `docs/so101_config.md` — SO-101 setup notes
-- `docs/PROJECT_QUESTION_LIST.md` — open questions for TAs / team
-- `papers/README.md` — paper notes and references
-
 ## Repository structure
 - `docs/` — project notes, setup notes, and decisions
 - `papers/` — optional paper notes and references
 - `scripts/` — robot setup, teleoperation, and data collection scripts
 - `config/` — local configuration templates and port files
 - `data/lerobot/` — local LeRobot-format recordings (gitignored)
+
+## Main scripts
+- `scripts/detect_ports.py` — detect USB ports for leader/follower and write `config/so101_ports.json`
+- `scripts/setup_motor.py` — initialise motor IDs on a new arm
+- `scripts/calibrate_motor.py` — run the calibration routine for leader or follower
+- `scripts/teleop.py` — bare teleoperation loop with no recording; useful for checking the robot works after calibration or practising the task without cluttering the dataset
+- `scripts/teleop_record.py` — teleoperation with full dataset recording (episode management, home-pose return, HF push)
+
+## Important docs
+- `docs/project_info.md` — project rules summary
+- `docs/so101_config.md` — SO-101 setup notes
+- `docs/PROJECT_QUESTION_LIST.md` — open questions for TAs / team
+- `papers/README.md` — paper notes and references
 
 ## Working conventions
 - keep project notes and decisions in `docs/`
