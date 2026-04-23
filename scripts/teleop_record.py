@@ -1,8 +1,17 @@
 import argparse
 import os
+import time
 from pathlib import Path
 
-from script_utils import DEFAULT_DATASET_ROOT, DEFAULT_PORTS_PATH, load_ports
+from script_utils import (
+    DEFAULT_DATASET_ROOT,
+    DEFAULT_FINAL_POSE_PATH,
+    DEFAULT_HOME_POSE_PATH,
+    load_final_pose,
+    DEFAULT_PORTS_PATH,
+    load_home_pose,
+    load_ports,
+)
 
 
 DEFAULT_DATASET_REPO_ID = "local/so101_teleop"
@@ -105,6 +114,36 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--camera-index", default=0)
     parser.add_argument("--camera-width", type=int, default=640)
     parser.add_argument("--camera-height", type=int, default=480)
+    parser.add_argument(
+        "--home-pose-path",
+        type=Path,
+        default=DEFAULT_HOME_POSE_PATH,
+        help="Path to a saved home pose JSON file.",
+    )
+    parser.add_argument(
+        "--final-pose-path",
+        type=Path,
+        default=DEFAULT_FINAL_POSE_PATH,
+        help="Path to a saved final pose JSON file used when exiting recording.",
+    )
+    parser.add_argument(
+        "--return-pose-source",
+        choices=("initial", "home"),
+        default="home",
+        help="Which pose to return to after each saved episode.",
+    )
+    parser.add_argument(
+        "--return-to-initial-pose",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="After each saved episode, move the follower back to the selected return pose.",
+    )
+    parser.add_argument(
+        "--return-move-time-sec",
+        type=float,
+        default=1.5,
+        help="Duration of the smooth motion used when returning to the selected pose.",
+    )
     return parser.parse_args()
 
 
@@ -116,6 +155,65 @@ def maybe_login_to_huggingface(token_env_var: str) -> None:
     from huggingface_hub import login
 
     login(token=token, add_to_git_credential=False)
+
+
+def is_local_repo_id(repo_id: str) -> bool:
+    return repo_id.split("/", 1)[0] == "local" if "/" in repo_id else True
+
+
+def has_local_dataset_metadata(dataset_root: Path) -> bool:
+    return (dataset_root / "meta" / "info.json").exists()
+
+
+def has_local_episode_metadata(dataset_root: Path) -> bool:
+    episodes_dir = dataset_root / "meta" / "episodes"
+    return episodes_dir.exists() and any(episodes_dir.rglob("*.parquet"))
+
+
+def has_finalized_local_dataset(dataset_root: Path) -> bool:
+    return has_local_dataset_metadata(dataset_root) and has_local_episode_metadata(dataset_root)
+
+
+def has_partial_local_dataset(dataset_root: Path) -> bool:
+    return dataset_root.exists() and any(dataset_root.iterdir()) and not has_finalized_local_dataset(dataset_root)
+
+
+def prepare_dataset_root_for_create(dataset_root: Path) -> None:
+    if dataset_root.exists() and not any(dataset_root.iterdir()):
+        dataset_root.rmdir()
+
+
+def extract_joint_pose(observation: dict[str, object]) -> dict[str, float]:
+    return {
+        key: float(value)
+        for key, value in observation.items()
+        if key.endswith(".pos")
+    }
+
+
+def move_robot_to_pose(
+    robot,
+    target_pose: dict[str, float],
+    duration_s: float,
+    fps: int,
+) -> None:
+    from lerobot.utils.robot_utils import precise_sleep
+
+    current_pose = extract_joint_pose(robot.get_observation())
+    common_keys = [key for key in target_pose if key in current_pose]
+    if not common_keys:
+        return
+
+    steps = max(int(duration_s * fps), 1)
+    for step_idx in range(1, steps + 1):
+        t0 = time.perf_counter()
+        alpha = step_idx / steps
+        action = {
+            key: (1.0 - alpha) * current_pose[key] + alpha * target_pose[key]
+            for key in common_keys
+        }
+        robot.send_action(action)
+        precise_sleep(max(1.0 / fps - (time.perf_counter() - t0), 0.0))
 
 
 def validate_push_to_hub_args(args: argparse.Namespace) -> None:
@@ -139,6 +237,7 @@ def main() -> None:
     args = parse_args()
     validate_push_to_hub_args(args)
 
+    from huggingface_hub.errors import RepositoryNotFoundError
     from lerobot.datasets.feature_utils import hw_to_dataset_features
     from lerobot.datasets.lerobot_dataset import LeRobotDataset
     from lerobot.processor import make_default_processors
@@ -146,6 +245,7 @@ def main() -> None:
     from lerobot.scripts.lerobot_record import record_loop
     from lerobot.teleoperators.so_leader import SO101Leader, SO101LeaderConfig
     from lerobot.utils.control_utils import init_keyboard_listener
+    from lerobot.utils.robot_utils import precise_sleep
     from lerobot.utils.utils import log_say
     from lerobot.utils.visualization_utils import init_rerun
 
@@ -163,15 +263,57 @@ def main() -> None:
     dataset_root = args.dataset_root / args.dataset_repo_id
 
     if args.resume:
-        if not dataset_root.exists():
+        if is_local_repo_id(args.dataset_repo_id) and not has_finalized_local_dataset(dataset_root):
             raise FileNotFoundError(
-                f"Cannot resume because the dataset directory does not exist: {dataset_root}"
+                f"Cannot resume local dataset because no finalized dataset metadata was found at: {dataset_root}"
             )
-        dataset = LeRobotDataset.resume(
-            repo_id=args.dataset_repo_id,
-            root=dataset_root,
-            image_writer_threads=args.image_writer_threads,
-        )
+
+        try:
+            if not has_finalized_local_dataset(dataset_root) and not is_local_repo_id(args.dataset_repo_id):
+                maybe_login_to_huggingface(args.hf_token_env)
+
+            dataset = LeRobotDataset.resume(
+                repo_id=args.dataset_repo_id,
+                root=dataset_root,
+                image_writer_threads=args.image_writer_threads,
+            )
+        except RepositoryNotFoundError:
+            if has_partial_local_dataset(dataset_root):
+                raise FileNotFoundError(
+                    f"A partial local dataset directory exists at {dataset_root}, but no matching Hub dataset was found. "
+                    "This usually happens when a previous run was interrupted before the dataset was pushed. "
+                    "Delete or rename the local directory and try again, or rerun without --resume."
+                )
+
+            if dataset_root.exists() and any(dataset_root.iterdir()):
+                raise FileNotFoundError(
+                    f"Could not resume from the Hub, and the local dataset directory is not a finalized dataset: {dataset_root}. "
+                    "Delete or rename the directory and try again, or rerun without --resume."
+                )
+
+            prepare_dataset_root_for_create(dataset_root)
+            log_say(
+                "No existing Hub dataset was found. Starting a new local dataset instead."
+            )
+            dataset = LeRobotDataset.create(
+                repo_id=args.dataset_repo_id,
+                fps=args.fps,
+                root=dataset_root,
+                features=dataset_features,
+                robot_type=robot.name,
+                use_videos=args.camera,
+                image_writer_threads=args.image_writer_threads,
+            )
+        except FileNotFoundError:
+            if has_partial_local_dataset(dataset_root) and not is_local_repo_id(args.dataset_repo_id):
+                maybe_login_to_huggingface(args.hf_token_env)
+                dataset = LeRobotDataset.resume(
+                    repo_id=args.dataset_repo_id,
+                    root=dataset_root,
+                    image_writer_threads=args.image_writer_threads,
+                )
+            else:
+                raise
     else:
         try:
             dataset = LeRobotDataset.create(
@@ -194,6 +336,18 @@ def main() -> None:
 
     robot.connect()
     teleop.connect()
+    initial_pose = extract_joint_pose(robot.get_observation())
+    if args.return_pose_source == "home":
+        try:
+            return_pose = load_home_pose(args.home_pose_path)
+        except FileNotFoundError as e:
+            raise FileNotFoundError(
+                f"Home pose file not found: {args.home_pose_path}. "
+                "Run `python scripts/save_home_pose.py` first, or use `--return-pose-source initial`."
+            ) from e
+    else:
+        return_pose = initial_pose
+    final_pose = load_final_pose(args.final_pose_path) if args.final_pose_path.exists() else None
 
     try:
         teleop_action_processor, robot_action_processor, robot_observation_processor = (
@@ -242,11 +396,34 @@ def main() -> None:
                 dataset.clear_episode_buffer()
                 continue
 
+            if args.return_to_initial_pose:
+                log_say(
+                    "Returning robot to home pose"
+                    if args.return_pose_source == "home"
+                    else "Returning robot to initial pose"
+                )
+                move_robot_to_pose(
+                    robot=robot,
+                    target_pose=return_pose,
+                    duration_s=args.return_move_time_sec,
+                    fps=args.fps,
+                )
+                precise_sleep(0.2)
+
             dataset.save_episode()
             episode_idx += 1
     finally:
         log_say("Stop recording")
         dataset.finalize()
+        if final_pose is not None:
+            log_say("Returning robot to final pose")
+            move_robot_to_pose(
+                robot=robot,
+                target_pose=final_pose,
+                duration_s=args.return_move_time_sec,
+                fps=args.fps,
+            )
+            precise_sleep(0.2)
         robot.disconnect()
         teleop.disconnect()
 

@@ -54,6 +54,24 @@ python scripts/calibrate_motor.py leader
 These scripts read `config/so101_ports.json`, so they should be run **after**
 `python scripts/detect_ports.py`.
 
+### Save a reusable home pose
+
+Move the follower arm to a safe pose manually, then save that pose:
+```bash
+python scripts/save_home_pose.py
+```
+
+This writes `config/so101_home_pose.json`.
+
+### Save a reusable final pose
+
+Move the follower arm to the pose you want to use when the full recording session ends, then save it:
+```bash
+python scripts/save_final_pose.py
+```
+
+This writes `config/so101_final_pose.json`.
+
 ### Teleoperation
 
 Without camera:
@@ -64,6 +82,20 @@ python scripts/teleop.py
 With camera:
 ```bash
 python scripts/teleop.py --camera
+```
+
+### Replay a recorded episode
+
+Replay episode 0 from the default local dataset:
+```bash
+python scripts/replay_episode.py --episode 0
+```
+
+Replay from a different local dataset:
+```bash
+python scripts/replay_episode.py \
+    --dataset-repo-id local/so101_teleop_test2 \
+    --episode 0
 ```
 
 ### Equivalent raw LeRobot CLI commands
@@ -132,8 +164,24 @@ python scripts/teleop_record.py \
 Notes:
 - default dataset root: `data/lerobot`
 - default dataset repo id: `local/so101_teleop`
+- by default, `teleop_record.py` returns to the saved home pose in `config/so101_home_pose.json` after each saved episode
+- if you have not saved a home pose yet, run `python scripts/save_home_pose.py` first
+- if `config/so101_final_pose.json` exists, `teleop_record.py` also moves to that final pose when the full recording session exits
+- if you want the old behavior instead, use `--return-pose-source initial`
+- if needed, return-to-pose can be disabled with `--no-return-to-initial-pose` or adjusted with `--return-move-time-sec`
 - if the dataset directory already exists and you want to keep adding episodes, use `--resume`
+- if `--resume` is used with a real Hugging Face repo id and the local dataset directory does not exist yet, the script will initialize the local dataset root from the Hub metadata and then append new episodes locally
+- if `--resume` is used with a real Hugging Face repo id but no Hub repo exists yet (for example, a previous run was interrupted before push), the script falls back to creating a new local dataset instead of failing with a raw Hub traceback
 - if you want a fresh dataset, use a new `--dataset-repo-id` or delete the old dataset directory first
+
+Example using a saved home pose:
+```bash
+python scripts/teleop_record.py \
+    --camera \
+    --return-pose-source home \
+    --num-episodes 2 \
+    --task "test recording"
+```
 
 ### Upload recorded dataset to Hugging Face
 
@@ -164,6 +212,17 @@ python scripts/teleop_record.py \
 ```
 
 Resume locally and then push:
+```bash
+python scripts/teleop_record.py \
+    --camera \
+    --dataset-repo-id <hf_username>/so101_teleop \
+    --resume \
+    --num-episodes 2 \
+    --task "test recording" \
+    --push-to-hub
+```
+
+Resume from a Hub dataset that is not yet present locally:
 ```bash
 python scripts/teleop_record.py \
     --camera \
