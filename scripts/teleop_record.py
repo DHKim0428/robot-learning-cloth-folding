@@ -340,6 +340,7 @@ def main() -> None:
         while episode_idx < args.num_episodes and not events["stop_recording"]:
             log_say(f"Recording episode {episode_idx + 1} of {args.num_episodes}")
 
+            move_robot_to_pose(robot, teleop.get_action(), args.return_move_time_sec, args.fps)
             record_loop(
                 robot=robot,
                 events=events,
@@ -357,7 +358,8 @@ def main() -> None:
             if not events["stop_recording"] and (
                 episode_idx < args.num_episodes - 1 or events["rerecord_episode"]
             ):
-                log_say("Reset the environment")
+                print("Reset the environment")
+                move_robot_to_pose(robot, teleop.get_action(), args.return_move_time_sec, args.fps)
                 record_loop(
                     robot=robot,
                     events=events,
@@ -376,23 +378,13 @@ def main() -> None:
                 events["rerecord_episode"] = False
                 events["exit_early"] = False
                 dataset.clear_episode_buffer()
+                return_to_pose_if_enabled(args, robot, return_pose)
+                print("Ready to re-record")
                 continue
 
-            if args.return_to_initial_pose:
-                log_say(
-                    "Returning robot to home pose"
-                    if args.return_pose_source == "home"
-                    else "Returning robot to initial pose"
-                )
-                move_robot_to_pose(
-                    robot=robot,
-                    target_pose=return_pose,
-                    duration_s=args.return_move_time_sec,
-                    fps=args.fps,
-                )
-                precise_sleep(0.2)
-
             dataset.save_episode()
+
+            return_to_pose_if_enabled(args, robot, return_pose)
             episode_idx += 1
     finally:
         log_say("Stop recording")
