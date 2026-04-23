@@ -241,13 +241,22 @@ def main() -> None:
     validate_push_to_hub_args(args)
 
     from huggingface_hub.errors import RepositoryNotFoundError
-    from lerobot.datasets.feature_utils import hw_to_dataset_features
+    try:
+        from lerobot.datasets.feature_utils import hw_to_dataset_features
+    except ImportError:
+        from lerobot.utils.feature_utils import hw_to_dataset_features
     from lerobot.datasets.lerobot_dataset import LeRobotDataset
-    from lerobot.processor import make_default_processors
+    try:
+        from lerobot.processor import make_default_processors
+    except ImportError:
+        from lerobot.processor.factory import make_default_processors
     from lerobot.robots.so_follower import SO101Follower
     from lerobot.scripts.lerobot_record import record_loop
     from lerobot.teleoperators.so_leader import SO101Leader, SO101LeaderConfig
-    from lerobot.utils.control_utils import init_keyboard_listener
+    try:
+        from lerobot.utils.control_utils import init_keyboard_listener
+    except ImportError:
+        from lerobot.common.control_utils import init_keyboard_listener
     from lerobot.utils.robot_utils import precise_sleep
     from lerobot.utils.utils import log_say
     from lerobot.utils.visualization_utils import init_rerun
