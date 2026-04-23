@@ -1,4 +1,5 @@
 import json
+import time
 from pathlib import Path
 
 
@@ -64,3 +65,55 @@ def load_final_pose(final_pose_path: Path) -> dict[str, float]:
 
 def save_final_pose(final_pose_path: Path, pose: dict[str, float]) -> None:
     save_home_pose(final_pose_path, pose)
+
+
+def extract_joint_pose(observation: dict[str, object]) -> dict[str, float]:
+    return {
+        key: float(value)
+        for key, value in observation.items()
+        if key.endswith(".pos")
+    }
+
+
+def move_robot_to_pose(
+    robot,
+    target_pose: dict[str, float],
+    duration_s: float,
+    fps: int,
+) -> None:
+    from lerobot.utils.robot_utils import precise_sleep
+
+    current_pose = extract_joint_pose(robot.get_observation())
+    common_keys = [key for key in target_pose if key in current_pose]
+    if not common_keys:
+        return
+
+    steps = max(int(duration_s * fps), 1)
+    for step_idx in range(1, steps + 1):
+        t0 = time.perf_counter()
+        alpha = step_idx / steps
+        action = {
+            key: (1.0 - alpha) * current_pose[key] + alpha * target_pose[key]
+            for key in common_keys
+        }
+        robot.send_action(action)
+        precise_sleep(max(1.0 / fps - (time.perf_counter() - t0), 0.0))
+
+
+def return_to_pose_if_enabled(args, robot, return_pose) -> None:
+    if not args.return_to_initial_pose:
+        return
+    from lerobot.utils.robot_utils import precise_sleep
+
+    print(
+        "Returning robot to home pose"
+        if args.return_pose_source == "home"
+        else "Returning robot to initial pose"
+    )
+    move_robot_to_pose(
+        robot=robot,
+        target_pose=return_pose,
+        duration_s=args.return_move_time_sec,
+        fps=args.fps,
+    )
+    precise_sleep(0.2)

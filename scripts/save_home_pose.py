@@ -4,18 +4,11 @@ from pathlib import Path
 from script_utils import (
     DEFAULT_HOME_POSE_PATH,
     DEFAULT_PORTS_PATH,
+    extract_joint_pose,
     follower_config_kwargs,
     load_ports,
     save_home_pose,
 )
-
-
-def extract_joint_pose(observation: dict[str, object]) -> dict[str, float]:
-    return {
-        key: float(value)
-        for key, value in observation.items()
-        if key.endswith(".pos")
-    }
 
 
 def parse_args() -> argparse.Namespace:

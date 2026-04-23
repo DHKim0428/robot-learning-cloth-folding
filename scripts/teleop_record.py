@@ -1,6 +1,5 @@
 import argparse
 import os
-import time
 from pathlib import Path
 
 from script_utils import (
@@ -8,11 +7,14 @@ from script_utils import (
     DEFAULT_FINAL_POSE_PATH,
     DEFAULT_HOME_POSE_PATH,
     DEFAULT_PORTS_PATH,
+    extract_joint_pose,
     follower_config_kwargs,
     leader_config_kwargs,
     load_final_pose,
     load_home_pose,
     load_ports,
+    move_robot_to_pose,
+    return_to_pose_if_enabled,
 )
 
 
@@ -185,38 +187,6 @@ def prepare_dataset_root_for_create(dataset_root: Path) -> None:
     if dataset_root.exists() and not any(dataset_root.iterdir()):
         dataset_root.rmdir()
 
-
-def extract_joint_pose(observation: dict[str, object]) -> dict[str, float]:
-    return {
-        key: float(value)
-        for key, value in observation.items()
-        if key.endswith(".pos")
-    }
-
-
-def move_robot_to_pose(
-    robot,
-    target_pose: dict[str, float],
-    duration_s: float,
-    fps: int,
-) -> None:
-    from lerobot.utils.robot_utils import precise_sleep
-
-    current_pose = extract_joint_pose(robot.get_observation())
-    common_keys = [key for key in target_pose if key in current_pose]
-    if not common_keys:
-        return
-
-    steps = max(int(duration_s * fps), 1)
-    for step_idx in range(1, steps + 1):
-        t0 = time.perf_counter()
-        alpha = step_idx / steps
-        action = {
-            key: (1.0 - alpha) * current_pose[key] + alpha * target_pose[key]
-            for key in common_keys
-        }
-        robot.send_action(action)
-        precise_sleep(max(1.0 / fps - (time.perf_counter() - t0), 0.0))
 
 
 def validate_push_to_hub_args(args: argparse.Namespace) -> None:
