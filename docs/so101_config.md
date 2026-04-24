@@ -31,14 +31,15 @@ DISPLAY=$DISPLAY python scripts/teleop_record.py \
 - `DISPLAY=$DISPLAY` is needed on the Spark machine to connect to the display for camera/rerun visualization.
 - Make sure your Hugging Face account is a member of the `robot-learning-team43` org, otherwise the push will fail with a 403.
 
-When you see `Reset the environment` printed in the terminal between episodes, that is your cue to reset the towel to the starting position before the next episode begins.
+When the terminal says `recording paused`, recording is stopped. Reset the towel to the starting position, then press `Space` to start the next attempt.
 
 **Tip:** start with `--num-episodes 1` to verify everything looks good, then bump the number once you're confident.
 
 **Keyboard controls during recording:**
-- `→` right arrow — finish the episode early (before the time limit)
-- `←` left arrow — discard and re-record the current episode
-- `Esc` — stop the session; previously saved episodes are kept and pushed. The episode currently in progress will be saved as a partial — if you want to avoid that, press `←` first to clear the current buffer, then `Esc`.
+- `Space` — start recording the current episode
+- `→` right arrow — save the current episode
+- `←` left arrow — discard the current episode and reset
+- `Esc` — stop the session; previously saved episodes are kept and pushed. Any unsaved episode in progress is discarded.
 
 ## MotorsBus ports
 
@@ -283,5 +284,4 @@ Upload notes:
 - `--push-to-hub` requires `--dataset-repo-id` to be a real Hugging Face repo id like `<hf_username>/<dataset_name>`
 - the default `local/so101_teleop` is only for local testing
 - token lookup order: `HF_TOKEN`, then `HUGGINGFACE_HUB_TOKEN`
-
 
