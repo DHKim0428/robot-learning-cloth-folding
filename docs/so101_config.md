@@ -31,14 +31,15 @@ DISPLAY=$DISPLAY python scripts/teleop_record.py \
 - `DISPLAY=$DISPLAY` is needed on the Spark machine to connect to the display for camera/rerun visualization.
 - Make sure your Hugging Face account is a member of the `robot-learning-team43` org, otherwise the push will fail with a 403.
 
-When you see `Reset the environment` printed in the terminal between episodes, that is your cue to reset the towel to the starting position before the next episode begins.
+When the terminal says `recording paused`, dataset recording is stopped but the follower still tracks the leader. Reset the towel to the starting position, align the leader where you want it, then press `Space` to start the next attempt.
 
 **Tip:** start with `--num-episodes 1` to verify everything looks good, then bump the number once you're confident.
 
 **Keyboard controls during recording:**
-- `→` right arrow — finish the episode early (before the time limit)
-- `←` left arrow — discard and re-record the current episode
-- `Esc` — stop the session; previously saved episodes are kept and pushed. The episode currently in progress will be saved as a partial — if you want to avoid that, press `←` first to clear the current buffer, then `Esc`.
+- `Space` — start recording the current episode
+- `→` right arrow — save the current episode
+- `←` left arrow — discard the current episode and reset
+- `Esc` — stop the session; previously saved episodes are kept and pushed. Any unsaved episode in progress is discarded.
 
 ## MotorsBus ports
 
@@ -210,21 +211,17 @@ python scripts/teleop_record.py \
 Notes:
 - default dataset root: `data/lerobot`
 - default dataset repo id: `local/so101_teleop`
-- by default, `teleop_record.py` returns to the saved home pose in `config/so101_home_pose.json` after each saved episode
-- if you have not saved a home pose yet, run `python scripts/save_home_pose.py` first
+- between attempts, `teleop_record.py` keeps the follower tracking the leader without writing dataset frames
 - if `config/so101_final_pose.json` exists, `teleop_record.py` also moves to that final pose when the full recording session exits
-- if you want the old behavior instead, use `--return-pose-source initial`
-- if needed, return-to-pose can be disabled with `--no-return-to-initial-pose` or adjusted with `--return-move-time-sec`
 - if the dataset directory already exists and you want to keep adding episodes, use `--resume`
 - if `--resume` is used with a real Hugging Face repo id and the local dataset directory does not exist yet, the script will initialize the local dataset root from the Hub metadata and then append new episodes locally
 - if `--resume` is used with a real Hugging Face repo id but no Hub repo exists yet (for example, a previous run was interrupted before push), the script falls back to creating a new local dataset instead of failing with a raw Hub traceback
 - if you want a fresh dataset, use a new `--dataset-repo-id` or delete the old dataset directory first
 
-Example using a saved home pose:
+Example:
 ```bash
 python scripts/teleop_record.py \
     --camera \
-    --return-pose-source home \
     --num-episodes 2 \
     --task "test recording"
 ```
@@ -283,5 +280,3 @@ Upload notes:
 - `--push-to-hub` requires `--dataset-repo-id` to be a real Hugging Face repo id like `<hf_username>/<dataset_name>`
 - the default `local/so101_teleop` is only for local testing
 - token lookup order: `HF_TOKEN`, then `HUGGINGFACE_HUB_TOKEN`
-
-

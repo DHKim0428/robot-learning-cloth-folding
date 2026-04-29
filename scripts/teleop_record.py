@@ -1,5 +1,8 @@
 import argparse
 import os
+import sys
+import threading
+import time
 from pathlib import Path
 
 from script_utils import (
@@ -7,14 +10,11 @@ from script_utils import (
     DEFAULT_FINAL_POSE_PATH,
     DEFAULT_HOME_POSE_PATH,
     DEFAULT_PORTS_PATH,
-    extract_joint_pose,
     follower_config_kwargs,
     leader_config_kwargs,
     load_final_pose,
-    load_home_pose,
     load_ports,
     move_robot_to_pose,
-    return_to_pose_if_enabled,
 )
 
 
@@ -123,7 +123,7 @@ def parse_args() -> argparse.Namespace:
         "--home-pose-path",
         type=Path,
         default=DEFAULT_HOME_POSE_PATH,
-        help="Path to a saved home pose JSON file.",
+        help="Deprecated; paused recording now follows the leader instead of returning to a home pose.",
     )
     parser.add_argument(
         "--final-pose-path",
@@ -135,19 +135,19 @@ def parse_args() -> argparse.Namespace:
         "--return-pose-source",
         choices=("initial", "home"),
         default="home",
-        help="Which pose to return to after each saved episode.",
+        help="Deprecated; accepted for compatibility but ignored.",
     )
     parser.add_argument(
         "--return-to-initial-pose",
         action=argparse.BooleanOptionalAction,
         default=True,
-        help="After each saved episode, move the follower back to the selected return pose.",
+        help="Deprecated; accepted for compatibility but ignored.",
     )
     parser.add_argument(
         "--return-move-time-sec",
         type=float,
         default=1.5,
-        help="Duration of the smooth motion used when returning to the selected pose.",
+        help="Duration of the smooth motion used when returning to the final pose at session exit.",
     )
     return parser.parse_args()
 
@@ -188,6 +188,207 @@ def prepare_dataset_root_for_create(dataset_root: Path) -> None:
         dataset_root.rmdir()
 
 
+def print_recording_controls() -> None:
+    print("\nKeyboard controls:")
+    print("  Space       start recording the current episode")
+    print("  Right arrow save the current episode")
+    print("  Left arrow  discard the current episode and reset")
+    print("  Esc         stop the recording session")
+    print()
+
+
+def print_recording_status(
+    *,
+    episode_idx: int,
+    num_episodes: int,
+    recording: bool,
+    detail: str | None = None,
+) -> None:
+    status = "recording in progress" if recording else "recording paused"
+    message = f"[episode {episode_idx + 1}/{num_episodes}] {status}"
+    if detail:
+        message = f"{message} - {detail}"
+    print(message, flush=True)
+
+
+def print_terminal_event(message: str) -> None:
+    sys.stdout.write("\r" + " " * 120 + "\r" + message + "\n")
+    sys.stdout.flush()
+
+
+def print_elapsed_recording_status(
+    events: dict,
+    episode_idx: int,
+    num_episodes: int,
+    episode_time_sec: int,
+) -> tuple[threading.Event, threading.Thread]:
+    done = threading.Event()
+
+    def update_status() -> None:
+        start_t = time.perf_counter()
+        while not done.is_set() and not events["exit_early"] and not events["stop_recording"]:
+            elapsed_s = time.perf_counter() - start_t
+            remaining_s = max(episode_time_sec - elapsed_s, 0.0)
+            sys.stdout.write(
+                "\r"
+                f"[episode {episode_idx + 1}/{num_episodes}] recording in progress "
+                f"- elapsed {elapsed_s:05.1f}s / {episode_time_sec}s "
+                f"- remaining {remaining_s:05.1f}s "
+                "- Right saves, Left discards, Esc stops"
+            )
+            sys.stdout.flush()
+            done.wait(0.2)
+
+        elapsed_s = time.perf_counter() - start_t
+        sys.stdout.write(
+            "\r"
+            f"[episode {episode_idx + 1}/{num_episodes}] recording paused "
+            f"- elapsed {elapsed_s:05.1f}s / {episode_time_sec}s"
+            + " " * 40
+            + "\n"
+        )
+        sys.stdout.flush()
+
+    thread = threading.Thread(target=update_status, daemon=True)
+    thread.start()
+    return done, thread
+
+
+def init_episode_keyboard_listener():
+    try:
+        from lerobot.utils.control_utils import is_headless
+    except ImportError:
+        from lerobot.common.control_utils import is_headless
+
+    if is_headless():
+        raise RuntimeError(
+            "Keyboard controls are required for manual episode recording, but a headless environment was detected."
+        )
+
+    from pynput import keyboard
+
+    events = {
+        "exit_early": False,
+        "rerecord_episode": False,
+        "stop_recording": False,
+        "start_episode": False,
+        "save_episode": False,
+        "episode_decision_enabled": False,
+    }
+
+    def on_press(key):
+        if key == keyboard.Key.space:
+            events["start_episode"] = True
+        elif key == keyboard.Key.right:
+            if not events["episode_decision_enabled"]:
+                return
+            print_terminal_event("Right arrow pressed. Saving this episode...")
+            events["save_episode"] = True
+            events["exit_early"] = True
+        elif key == keyboard.Key.left:
+            if not events["episode_decision_enabled"]:
+                return
+            print_terminal_event("Left arrow pressed. Discarding this episode...")
+            events["rerecord_episode"] = True
+            events["exit_early"] = True
+        elif key == keyboard.Key.esc:
+            print_terminal_event("Escape pressed. Stopping data recording...")
+            events["stop_recording"] = True
+            events["exit_early"] = True
+
+    listener = keyboard.Listener(on_press=on_press)
+    listener.start()
+    return listener, events
+
+
+def follow_leader_until_episode_start(
+    *,
+    robot,
+    teleop,
+    events: dict,
+    fps: int,
+    teleop_action_processor,
+    robot_action_processor,
+    episode_idx: int,
+    num_episodes: int,
+) -> bool:
+    from lerobot.utils.robot_utils import precise_sleep
+
+    events["start_episode"] = False
+    events["exit_early"] = False
+    events["rerecord_episode"] = False
+    events["save_episode"] = False
+    events["episode_decision_enabled"] = False
+    print_recording_status(
+        episode_idx=episode_idx,
+        num_episodes=num_episodes,
+        recording=False,
+        detail="following leader; press Space to start, or Esc to stop",
+    )
+
+    status_t = 0.0
+    while not events["stop_recording"]:
+        if events["start_episode"]:
+            events["start_episode"] = False
+            sys.stdout.write("\n")
+            sys.stdout.flush()
+            return True
+
+        start_loop_t = time.perf_counter()
+        obs = robot.get_observation()
+        act = teleop.get_action()
+        act_processed_teleop = teleop_action_processor((act, obs))
+        robot_action_to_send = robot_action_processor((act_processed_teleop, obs))
+        robot.send_action(robot_action_to_send)
+
+        now = time.perf_counter()
+        if now - status_t >= 0.5:
+            status_t = now
+            sys.stdout.write(
+                "\r"
+                f"[episode {episode_idx + 1}/{num_episodes}] recording paused "
+                "- following leader; press Space to start, Esc to stop"
+            )
+            sys.stdout.flush()
+
+        precise_sleep(max(1 / fps - (time.perf_counter() - start_loop_t), 0.0))
+
+    sys.stdout.write("\n")
+    sys.stdout.flush()
+    return False
+
+
+def wait_for_episode_decision(events: dict, episode_idx: int, num_episodes: int) -> str:
+    from lerobot.utils.robot_utils import precise_sleep
+
+    if events["stop_recording"]:
+        return "stop"
+    if events["rerecord_episode"]:
+        events["episode_decision_enabled"] = False
+        return "discard"
+    if events["save_episode"]:
+        events["episode_decision_enabled"] = False
+        return "save"
+
+    events["exit_early"] = False
+    print_recording_status(
+        episode_idx=episode_idx,
+        num_episodes=num_episodes,
+        recording=False,
+        detail="episode time ended; press Right to save or Left to discard",
+    )
+    while not events["stop_recording"]:
+        if events["rerecord_episode"]:
+            events["episode_decision_enabled"] = False
+            return "discard"
+        if events["save_episode"]:
+            events["episode_decision_enabled"] = False
+            return "save"
+        precise_sleep(0.1)
+    events["episode_decision_enabled"] = False
+    return "stop"
+
+
 
 def validate_push_to_hub_args(args: argparse.Namespace) -> None:
     if not args.push_to_hub:
@@ -223,12 +424,7 @@ def main() -> None:
     from lerobot.robots.so_follower import SO101Follower
     from lerobot.scripts.lerobot_record import record_loop
     from lerobot.teleoperators.so_leader import SO101Leader, SO101LeaderConfig
-    try:
-        from lerobot.utils.control_utils import init_keyboard_listener
-    except ImportError:
-        from lerobot.common.control_utils import init_keyboard_listener
     from lerobot.utils.robot_utils import precise_sleep
-    from lerobot.utils.utils import log_say
     from lerobot.utils.visualization_utils import init_rerun
 
     ports = load_ports(args.config)
@@ -311,22 +507,11 @@ def main() -> None:
                 "Use --resume to append episodes, or choose a different --dataset-repo-id / --dataset-root."
             ) from e
 
-    _, events = init_keyboard_listener()
+    listener, events = init_episode_keyboard_listener()
     init_rerun(session_name="recording")
 
     robot.connect()
     teleop.connect()
-    initial_pose = extract_joint_pose(robot.get_observation())
-    if args.return_pose_source == "home":
-        try:
-            return_pose = load_home_pose(args.home_pose_path)
-        except FileNotFoundError as e:
-            raise FileNotFoundError(
-                f"Home pose file not found: {args.home_pose_path}. "
-                "Run `python scripts/save_home_pose.py` first, or use `--return-pose-source initial`."
-            ) from e
-    else:
-        return_pose = initial_pose
     final_pose = load_final_pose(args.final_pose_path) if args.final_pose_path.exists() else None
 
     try:
@@ -336,28 +521,30 @@ def main() -> None:
 
         episode_idx = 0
         while episode_idx < args.num_episodes and not events["stop_recording"]:
-            print(f"Recording episode {episode_idx + 1} of {args.num_episodes}")
-
-            move_robot_to_pose(robot, teleop.get_action(), args.return_move_time_sec, args.fps)
-            record_loop(
+            print_recording_controls()
+            if not follow_leader_until_episode_start(
                 robot=robot,
+                teleop=teleop,
                 events=events,
                 fps=args.fps,
                 teleop_action_processor=teleop_action_processor,
                 robot_action_processor=robot_action_processor,
-                robot_observation_processor=robot_observation_processor,
-                teleop=teleop,
-                dataset=dataset,
-                control_time_s=args.episode_time_sec,
-                single_task=args.task,
-                display_data=True,
-            )
-
-            if not events["stop_recording"] and (
-                episode_idx < args.num_episodes - 1 or events["rerecord_episode"]
+                episode_idx=episode_idx,
+                num_episodes=args.num_episodes,
             ):
-                print("Reset the environment")
-                move_robot_to_pose(robot, teleop.get_action(), args.return_move_time_sec, args.fps)
+                break
+
+            events["exit_early"] = False
+            events["rerecord_episode"] = False
+            events["save_episode"] = False
+            events["episode_decision_enabled"] = True
+            status_done, status_thread = print_elapsed_recording_status(
+                events=events,
+                episode_idx=episode_idx,
+                num_episodes=args.num_episodes,
+                episode_time_sec=args.episode_time_sec,
+            )
+            try:
                 record_loop(
                     robot=robot,
                     events=events,
@@ -366,25 +553,65 @@ def main() -> None:
                     robot_action_processor=robot_action_processor,
                     robot_observation_processor=robot_observation_processor,
                     teleop=teleop,
-                    control_time_s=args.reset_time_sec,
+                    dataset=dataset,
+                    control_time_s=args.episode_time_sec,
                     single_task=args.task,
                     display_data=True,
                 )
+            finally:
+                status_done.set()
+                status_thread.join()
 
-            if events["rerecord_episode"]:
+            decision = wait_for_episode_decision(events, episode_idx, args.num_episodes)
+
+            if decision == "discard":
                 events["rerecord_episode"] = False
                 events["exit_early"] = False
+                events["save_episode"] = False
+                events["episode_decision_enabled"] = False
                 dataset.clear_episode_buffer()
-                return_to_pose_if_enabled(args, robot, return_pose)
-                print("Ready to re-record")
+                print_recording_status(
+                    episode_idx=episode_idx,
+                    num_episodes=args.num_episodes,
+                    recording=False,
+                    detail="episode discarded; reset the environment, then press Space",
+                )
                 continue
 
+            if decision == "stop":
+                dataset.clear_episode_buffer()
+                print_recording_status(
+                    episode_idx=episode_idx,
+                    num_episodes=args.num_episodes,
+                    recording=False,
+                    detail="session stopping; unsaved episode discarded",
+                )
+                break
+
+            events["save_episode"] = False
+            events["exit_early"] = False
+            events["rerecord_episode"] = False
+            events["episode_decision_enabled"] = False
+            print_recording_status(
+                episode_idx=episode_idx,
+                num_episodes=args.num_episodes,
+                recording=False,
+                detail="saving episode",
+            )
             dataset.save_episode()
 
-            return_to_pose_if_enabled(args, robot, return_pose)
             episode_idx += 1
+            if episode_idx < args.num_episodes:
+                print_recording_status(
+                    episode_idx=episode_idx,
+                    num_episodes=args.num_episodes,
+                    recording=False,
+                    detail="saved; reset the environment, then press Space",
+                )
     finally:
         print("Stop recording")
+        if listener is not None:
+            listener.stop()
         dataset.finalize()
         if final_pose is not None:
             print("Returning robot to final pose")
