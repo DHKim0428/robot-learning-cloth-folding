@@ -10,6 +10,7 @@ __pycache__/
 .venv/
 venv/
 .env
+hf_token.txt
 
 # Project-local agent memory
 AGENT_WORKBOOK.md
@@ -43,6 +44,7 @@ results/
 !/data/teleop/.gitkeep
 /data/lerobot/*
 !/data/lerobot/.gitkeep
+/data/so101_teleop/
 
 # Course computing-resource instructions PDF
 docs/Robot_Learning_FS26_Brev_Instruction.pdf
