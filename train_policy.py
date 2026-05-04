@@ -6,6 +6,41 @@ import random
 import cv2
 import glob
 import pandas as pd
+import argparse
+import tomllib
+from pathlib import Path
+
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--episode-filter",
+        nargs="?",
+        const="bad",
+        choices=["bad", "meh"],
+        default=None,
+        help="Enable episode filtering. Use without a value to ignore bad episodes; use 'meh' to ignore bad and meh episodes.",
+    )
+    return parser.parse_args()
+
+
+def load_episode_filter(mode, path=Path("config/episode_filter.toml")):
+    if mode is None:
+        return set()
+
+    if not path.exists():
+        return set()
+
+    with path.open("rb") as f:
+        config = tomllib.load(f)
+
+    episodes = config.get("episodes", {})
+    ignored = set(int(ep) for ep in episodes.get("bad", []))
+
+    if mode == "meh":
+        ignored.update(int(ep) for ep in episodes.get("meh", []))
+
+    return ignored
 
 
 # =========================
@@ -73,12 +108,16 @@ def get_fold_target(corners, phase):
 # =========================
 # LOAD DATASET
 # =========================
+args = parse_args()
+ignored_episodes = load_episode_filter(args.episode_filter)
+
 ds = load_dataset(
     "robot-learning-team43/so101_teleop_private",
     split="train"
 )
 
 print("Dataset size:", len(ds))
+print("Ignored episodes:", sorted(ignored_episodes))
 
 
 # =========================
@@ -97,8 +136,18 @@ print("Input dim:", input_dim)
 # =========================
 sample_size = min(5000, len(ds))
 
-states = np.array([ds[i]["observation.state"] for i in range(sample_size)])
-actions = np.array([ds[i]["action"] for i in range(sample_size)])
+normalization_indices = [
+    i
+    for i in range(len(ds))
+    if int(ds[i]["episode_index"]) not in ignored_episodes
+]
+normalization_indices = normalization_indices[:sample_size]
+
+if len(normalization_indices) == 0:
+    raise RuntimeError("No samples left after applying episode filter.")
+
+states = np.array([ds[i]["observation.state"] for i in normalization_indices])
+actions = np.array([ds[i]["action"] for i in normalization_indices])
 
 state_mean = torch.tensor(states.mean(axis=0), dtype=torch.float32)
 state_std = torch.tensor(states.std(axis=0) + 1e-6, dtype=torch.float32)
@@ -206,6 +255,8 @@ for step in range(num_steps):
 
         idx = random.randint(0, len(ds) - 1)
         sample = ds[idx]
+        if int(sample["episode_index"]) in ignored_episodes:
+            continue
 
         corners_np = corners_by_index.get(int(sample["index"]))
         if corners_np is None:
