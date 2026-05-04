@@ -1,14 +1,22 @@
 from datasets import load_dataset
 import torch
-from torch import nn
 import numpy as np
 import random
 import cv2
-import glob
 import pandas as pd
 import argparse
-import tomllib
 from pathlib import Path
+
+from features import (
+    DATASET_ROOT,
+    build_policy_model,
+    dataset_shards,
+    detect_corners,
+    get_fold_target,
+    load_episode_filter,
+    order_corners,
+    video_for_opencv,
+)
 
 
 def parse_args():
@@ -21,88 +29,19 @@ def parse_args():
         default=None,
         help="Enable episode filtering. Use without a value to ignore bad episodes; use 'meh' to ignore bad and meh episodes.",
     )
+    parser.add_argument(
+        "--dataset-root",
+        type=Path,
+        default=DATASET_ROOT,
+        help="Local LeRobot dataset root used for videos and parquet shards.",
+    )
+    parser.add_argument(
+        "--output-policy",
+        type=Path,
+        default=Path("policy.pt"),
+        help="Output checkpoint path.",
+    )
     return parser.parse_args()
-
-
-def load_episode_filter(mode, path=Path("config/episode_filter.toml")):
-    if mode is None:
-        return set()
-
-    if not path.exists():
-        return set()
-
-    with path.open("rb") as f:
-        config = tomllib.load(f)
-
-    episodes = config.get("episodes", {})
-    ignored = set(int(ep) for ep in episodes.get("bad", []))
-
-    if mode == "meh":
-        ignored.update(int(ep) for ep in episodes.get("meh", []))
-
-    return ignored
-
-
-# =========================
-# CORNER DETECTION
-# =========================
-def detect_corners(frame):
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    edges = cv2.Canny(gray, 50, 150)
-
-    contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-    if len(contours) == 0:
-        return None
-
-    c = max(contours, key=cv2.contourArea)
-
-    epsilon = 0.02 * cv2.arcLength(c, True)
-    approx = cv2.approxPolyDP(c, epsilon, True)
-
-    pts = approx.reshape(-1, 2)
-
-    if len(pts) < 4:
-        return None
-
-    pts = pts[:4]
-
-    # normalize
-    pts = pts / np.array([[frame.shape[1], frame.shape[0]]])
-
-    return pts  # (4,2)
-
-
-def order_corners(corners):
-    # Image coordinates: x grows left-to-right, y grows back-to-front.
-    corners = np.asarray(corners, dtype=np.float32)
-    y_sorted = corners[np.argsort(corners[:, 1])]
-
-    back = y_sorted[:2]
-    front = y_sorted[2:]
-
-    back = back[np.argsort(back[:, 0])]
-    front = front[np.argsort(front[:, 0])]
-
-    back_left, back_right = back
-    front_left, front_right = front
-
-    return np.stack(
-        [back_left, back_right, front_left, front_right]
-    ).astype(np.float32)
-
-
-def get_fold_target(corners, phase):
-    back_left, back_right, front_left, front_right = corners
-
-    if phase == 0:
-        pick_corner = back_left
-        target_corner = front_right
-    else:
-        pick_corner = back_right
-        target_corner = front_left
-
-    return target_corner - pick_corner
 
 
 # =========================
@@ -126,7 +65,7 @@ print("Ignored episodes:", sorted(ignored_episodes))
 state_dim = len(ds[0]["observation.state"])
 action_dim = len(ds[0]["action"])
 
-input_dim = 6 + 8 + 2 + 1  # state + corners + goal + phase
+input_dim = state_dim + 8 + 2 + 1  # state + corners + goal + phase
 
 print("Input dim:", input_dim)
 
@@ -159,40 +98,25 @@ action_std = torch.tensor(actions.std(axis=0) + 1e-6, dtype=torch.float32)
 # =========================
 # MODEL
 # =========================
-model = nn.Sequential(
-    nn.Linear(input_dim, 256),
-    nn.ReLU(),
-    nn.Dropout(0.2),
-    nn.Linear(256, 256),
-    nn.ReLU(),
-    nn.Dropout(0.2),
-    nn.Linear(256, action_dim)
-)
+model = build_policy_model(input_dim, action_dim)
 
 optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
-loss_fn = nn.MSELoss()
+loss_fn = torch.nn.MSELoss()
 
 # =========================
 # PRECOMPUTE VIDEO CORNERS
 # =========================
 print("Precomputing video corners...")
 
-video_files = sorted(glob.glob(
-    "data/so101_teleop/videos/observation.images.front/chunk-000/file-*.mp4"
-))
-data_files = sorted(glob.glob(
-    "data/so101_teleop/data/chunk-000/file-*.parquet"
-))
+shards = dataset_shards(args.dataset_root)
 
-if len(video_files) != len(data_files):
-    raise RuntimeError(
-        f"Found {len(video_files)} video files but {len(data_files)} data files."
-    )
+if len(shards) == 0:
+    raise RuntimeError(f"No dataset shards found under {args.dataset_root}.")
 
 corners_by_index = {}
 episode_lengths = {}
 
-for vid_id, (video_path, data_path) in enumerate(zip(video_files, data_files)):
+for vid_id, (video_path, data_path) in enumerate(shards):
     data = pd.read_parquet(
         data_path,
         columns=["index", "episode_index", "frame_index"]
@@ -207,7 +131,7 @@ for vid_id, (video_path, data_path) in enumerate(zip(video_files, data_files)):
             frame_index + 1
         )
 
-    cap = cv2.VideoCapture(video_path)
+    cap = cv2.VideoCapture(str(video_for_opencv(video_path)))
 
     frame_count = 0
     usable_count = 0
@@ -318,10 +242,11 @@ for step in range(num_steps):
 # =========================
 torch.save({
     "model": model.state_dict(),
+    "input_dim": input_dim,
     "state_mean": state_mean,
     "state_std": state_std,
     "action_mean": action_mean,
     "action_std": action_std
-}, "policy.pt")
+}, args.output_policy)
 
-print("Model saved.")
+print(f"Model saved to {args.output_policy}.")
