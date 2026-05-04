@@ -1,17 +1,13 @@
 # Episode filtering for policy training.
 #
 # Intended behavior:
-# - bad episodes should always be ignored.
-# - meh episodes are optional; training code can include or exclude them with a flag.
-#
-# Example training-side logic:
-#   ignored = set(bad_episodes)
-#   if exclude_meh_episodes:
-#       ignored.update(meh_episodes)
+# - no --episode-filter flag keeps all episodes.
+# - --episode-filter ignores bad episodes.
+# - --episode-filter meh ignores bad and meh episodes.
 
 [episodes]
 
-# Episodes to always ignore.
+# Episodes to ignore when episode filtering is enabled.
 bad = [
   1,
   8,
@@ -26,7 +22,7 @@ bad = [
 ]
 
 # Optional ignore list.
-# Include these only when training with stricter filtering.
+# Include these only when training with --episode-filter meh.
 meh = [
   3,
   4,
@@ -47,4 +43,3 @@ meh = [
   52, # slight overcorrection
   53, # slight overcorrection
 ]
-
