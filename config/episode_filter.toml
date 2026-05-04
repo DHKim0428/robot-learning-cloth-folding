@@ -1,0 +1,50 @@
+# Episode filtering for policy training.
+#
+# Intended behavior:
+# - bad episodes should always be ignored.
+# - meh episodes are optional; training code can include or exclude them with a flag.
+#
+# Example training-side logic:
+#   ignored = set(bad_episodes)
+#   if exclude_meh_episodes:
+#       ignored.update(meh_episodes)
+
+[episodes]
+
+# Episodes to always ignore.
+bad = [
+  1,
+  8,
+  10,
+  12,
+  23, # camera bit fugged up
+  24, # camera bit fugged up
+  30,
+  48, # bad fold
+  54,
+  57, # mistake and overcorrection
+]
+
+# Optional ignore list.
+# Include these only when training with stricter filtering.
+meh = [
+  3,
+  4,
+  7,
+  10, # can be used
+  11, # can be used
+  12, # made a mistake and recorrected
+  13, # too fast
+  15, # fast
+  21,
+  27,
+  31, # a little bad
+  36, # camera bit fugged up
+  41, # camera bit fugged up
+  40,
+  45,
+  47,
+  52, # slight overcorrection
+  53, # slight overcorrection
+]
+
