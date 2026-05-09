@@ -79,7 +79,7 @@ To start recording immediately, jump to [Recording on the Spark machine](docs/so
 ## Two-stage recording quickstart
 
 ```bash
-python scripts/capture_two_stage_home_pose.py --camera
+python scripts/capture_two_stage_home_pose.py
 python scripts/teleop_record_two_stage.py --camera --stage 1 --num-episodes 10
 python scripts/teleop_record_two_stage.py --camera --stage 2 --num-episodes 10 --resume
 ```

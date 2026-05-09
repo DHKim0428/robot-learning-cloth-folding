@@ -120,7 +120,7 @@ python scripts/calibrate_motor.py follower
 python scripts/calibrate_motor.py leader
 python scripts/save_home_pose.py
 python scripts/save_final_pose.py
-python scripts/capture_two_stage_home_pose.py --camera
+python scripts/capture_two_stage_home_pose.py
 python scripts/teleop.py --camera
 python scripts/replay_episode.py --episode 0
 ```
@@ -152,7 +152,7 @@ All course demonstrations should be stored in LeRobot dataset format v3.
 Two-stage diffusion data collection uses a separate local dataset location by default:
 
 ```bash
-python scripts/capture_two_stage_home_pose.py --camera
+python scripts/capture_two_stage_home_pose.py
 python scripts/teleop_record_two_stage.py --camera --stage 1 --num-episodes 10
 python scripts/teleop_record_two_stage.py --camera --stage 2 --num-episodes 10 --resume
 ```
