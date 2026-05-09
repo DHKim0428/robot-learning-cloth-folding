@@ -35,6 +35,7 @@ results/
 *.onnx
 
 # Keep folder structure, ignore bulky data contents
+/data/*
 /data/raw/*
 !/data/raw/.gitkeep
 /data/processed/*
