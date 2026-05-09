@@ -6,6 +6,50 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ETH Robot Learning course "Project 5: Cloth Folding" (Team 43). Goal: build a diffusion-based policy (DDIM/DDPM/Flow Matching) for vertex-to-vertex towel folding on the SO-101 arm. Demonstrations are recorded in **LeRobot dataset format v3** via teleoperation. See `docs/project_info.md` for evaluation rules and `README.md` for current milestone state.
 
+The current branch (`shak-diff-model`) begins the **diffusion-policy implementation track**. Treat `nn-approach-eleni/` as a sibling baseline and build the new diffusion pipeline alongside it (do not modify it unless the task says so).
+
+### Hard constraints (from `docs/project_info.md` + `docs/BRAINSTORMING_NOTES_2026-04-20.md`)
+- Policy noise schedule **must** be one of: **DDIM**, **DDPM**, or **Flow Matching**. SmolVLA / π₀.₅ remain candidates because their action heads are flow-matching.
+- Backbone, architecture, scratch-vs-pretrained, and post-training are unrestricted; pretrained components are allowed as long as the deployed policy stays in the diffusion family.
+- Hardware: one SO-101 follower + teleop pair. Compute budget: ~**200 H100 GPU-hours** total — be deliberate about ablations.
+- Towel: **20×20 cm non-white**, used across all three main milestones; main eval is on a standardized white table in the ETH HG Foyer. Bonus uses a TA-chosen towel/position.
+- Eval milestones (5 attempts total, scored by furthest-reached): **grasping** → **single fold** (vertices < 2 cm apart) → **double fold**.
+- Initial towel position is team-chosen in the main eval (gripper tip ≥ 6 cm from towel) — exploit this to make corner detection / grasp approach easier.
+
+### Open questions (from `docs/PROJECT_QUESTION_LIST.md`) — do not assume answers
+External-camera permission, hybrid/stage-wise system permission, runtime/latency limits, and whether a single fixed policy is required across the 5 main-eval runs are still unresolved with the TAs. Avoid designs that hard-depend on any one of these resolutions.
+
+## Diffusion policy implementation guidance
+
+### Recommended LeRobot baseline config (from `docs/FUTURE_DIFFUSION_NOTES.md`, tracking PR #3202)
+Start the first LeRobot diffusion baseline with these non-default values:
+- `pretrained_backbone_weights="ResNet18_Weights.IMAGENET1K_V1"` (ImageNet ResNet18)
+- `use_group_norm=False` — required when using pretrained ResNet weights (BatchNorm must stay intact)
+- `horizon=64` (~2.13 s @ 30 fps; old default 16 ≈ 0.53 s is too short for folding)
+- `n_action_steps=32` (~1.07 s)
+- `use_separate_rgb_encoder_per_camera=True` — low impact with the current single-camera setup, but keep on by default for when wrist/scene cameras get added
+- Load via `LeRobotDataset` / `LeRobotDatasetMetadata` (v3 format)
+
+Caveat: the original Diffusion Policy paper found pretrained vision helped in sim but the strongest real-world results trained the encoder end-to-end. Treat the above as a strong starting baseline, not a settled answer — run the controlled comparisons listed in `FUTURE_DIFFUSION_NOTES.md` (pretrained vs scratch, long vs short horizon, frozen vs finetuned backbone).
+
+### Dataset keys currently present
+- Observations: `observation.state`, `observation.images.front`
+- Action: `action`
+
+### Sanity-check workflow before any hardware rollout
+TA-mandated onboarding (`docs/project_info.md` §"Required sanity-check steps") plus diffusion-specific checks:
+1. Confirm ≥ 20 demos exist with consistent motion; replay a few episodes in the matching scene to verify capture.
+2. Single-episode overfit first — must drive train loss near zero and reproduce the demo on replay.
+3. Inspect predicted action ranges **after unnormalization** before sending anything to the arm.
+4. Dry-run / simulated rollout for action smoothness; only then a hardware rollout, grasping milestone first.
+
+### Suggested starting references
+- Original Diffusion Policy: <https://arxiv.org/pdf/2303.04137>
+- Improved DiT-block Policy: <https://arxiv.org/pdf/2410.10088>
+- Folding-specific ideas: <https://arxiv.org/pdf/2505.09109>
+- Bi-manual cloth folding (LeRobot space): <https://huggingface.co/spaces/lerobot/robot-folding#the-bigger-picture>
+- LeRobot itself ships Diffusion Policy and DiT-Policy implementations under `lerobot.policies.*` — prefer extending those over reimplementing.
+
 ## Environment
 
 - Python is run inside the `lerobot` conda env (`conda activate lerobot`).

@@ -73,6 +73,18 @@ To start recording immediately, jump to [Recording on the Spark machine](docs/so
 - `scripts/calibrate_motor.py` — run the calibration routine for leader or follower
 - `scripts/teleop.py` — bare teleoperation loop with no recording; useful for checking the robot works after calibration or practising the task without cluttering the dataset
 - `scripts/teleop_record.py` — teleoperation with full dataset recording (episode management, home-pose return, HF push)
+- `scripts/capture_two_stage_home_pose.py` — teleoperate to a camera-friendly two-stage home pose and save it to `config/so101_two_stage_home_pose.json`
+- `scripts/teleop_record_two_stage.py` — record stage-1 or stage-2 folding demos into `data/lerobot_two_stage/local/so101_two_stage`, with follower/leader home start and recorded return-home appended to each episode
+
+## Two-stage recording quickstart
+
+```bash
+python scripts/capture_two_stage_home_pose.py --camera
+python scripts/teleop_record_two_stage.py --camera --stage 1 --num-episodes 10
+python scripts/teleop_record_two_stage.py --camera --stage 2 --num-episodes 10 --resume
+```
+
+Keyboard controls are close to the regular recorder: `Space` starts an episode, `Right` finishes the episode and saves it after appending the return-home segment, `Left` finishes the episode and discards it after returning home, and `Esc` aborts the session without saving the current episode.
 
 ## Important docs
 - `docs/project_info.md` — project rules summary
