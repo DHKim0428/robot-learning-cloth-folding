@@ -9,8 +9,10 @@ DEFAULT_CALIBRATION_ROOT = PROJECT_ROOT / "config" / "calibration"
 DEFAULT_FOLLOWER_CALIBRATION_DIR = DEFAULT_CALIBRATION_ROOT / "robots" / "so_follower"
 DEFAULT_LEADER_CALIBRATION_DIR = DEFAULT_CALIBRATION_ROOT / "teleoperators" / "so_leader"
 DEFAULT_HOME_POSE_PATH = PROJECT_ROOT / "config" / "so101_home_pose.json"
+DEFAULT_TWO_STAGE_HOME_POSE_PATH = PROJECT_ROOT / "config" / "so101_two_stage_home_pose.json"
 DEFAULT_FINAL_POSE_PATH = PROJECT_ROOT / "config" / "so101_final_pose.json"
 DEFAULT_DATASET_ROOT = PROJECT_ROOT / "data" / "lerobot"
+DEFAULT_TWO_STAGE_DATASET_ROOT = PROJECT_ROOT / "data" / "lerobot_two_stage"
 
 
 def load_ports(config_path: Path) -> dict[str, str]:
@@ -98,6 +100,39 @@ def move_robot_to_pose(
         }
         robot.send_action(action)
         precise_sleep(max(1.0 / fps - (time.perf_counter() - t0), 0.0))
+
+
+def move_leader_to_pose(
+    teleop,
+    target_pose: dict[str, float],
+    duration_s: float,
+    fps: int,
+    *,
+    release_after: bool,
+) -> None:
+    """Actuate the SO-101 leader to a pose, then optionally release it for manual teleop."""
+    from lerobot.utils.robot_utils import precise_sleep
+
+    current_pose = teleop.get_action()
+    common_keys = [key for key in target_pose if key in current_pose and key.endswith(".pos")]
+    if not common_keys:
+        return
+
+    teleop.bus.enable_torque()
+    try:
+        steps = max(int(duration_s * fps), 1)
+        for step_idx in range(1, steps + 1):
+            t0 = time.perf_counter()
+            alpha = step_idx / steps
+            action = {
+                key.removesuffix(".pos"): (1.0 - alpha) * current_pose[key] + alpha * target_pose[key]
+                for key in common_keys
+            }
+            teleop.bus.sync_write("Goal_Position", action)
+            precise_sleep(max(1.0 / fps - (time.perf_counter() - t0), 0.0))
+    finally:
+        if release_after:
+            teleop.bus.disable_torque()
 
 
 def return_to_pose_if_enabled(args, robot, return_pose) -> None:
