@@ -511,17 +511,51 @@ def compute_sarm_progress(
         for frame_idx in ep_compute:
             compute_items.append((episode_idx, frame_idx, task))
 
-    # Phase 2: batched inference across all episodes
+    # Phase 2: batched inference across all episodes.
+    #
+    # The real bottleneck is CLIP image encoding inside preprocess(), which runs
+    # one sample at a time.  We intercept it with a mock that saves the
+    # post-normalization images and returns a zero placeholder, then batch-encode
+    # all B images with one CLIP forward pass in _flush_batch.
+    # Everything else (state normalisation, text encoding, lengths) runs
+    # per-sample as before, so results are bit-for-bit identical.
+
+    # Locate the encoding step so we can swap its CLIP method.
+    _encoding_step = next(
+        (s for s in preprocess.steps if type(s).__name__ == "SARMEncodingProcessorStep"),
+        None,
+    )
+    _use_batched_clip = _encoding_step is not None
+    _img_dim = getattr(reward_model.config, "image_dim", 512)
+    if _use_batched_clip:
+        _orig_encode = _encoding_step._encode_images_batch  # bound method, keeps @no_grad
+
     # key: (episode_idx, frame_idx) -> (sparse_val, dense_val)
     frame_results: dict[tuple[int, int], tuple[float, float]] = {}
 
     buffer_keys: list[tuple[int, int]] = []
     buffer_processed: list[dict] = []
+    buffer_raw_images: list[np.ndarray] = []  # (1, T, C, H, W) numpy per sample
+    _mock_collector: list[np.ndarray] = []
+
+    def _mock_encode(images: np.ndarray) -> torch.Tensor:
+        """Saves images for later batch CLIP call; returns a zero placeholder."""
+        _mock_collector.append(images.copy())
+        B, T = images.shape[:2]
+        return torch.zeros(B, T, _img_dim)
 
     def _flush_batch():
         if not buffer_processed:
             return
         try:
+            # Batch CLIP: encode all collected images in one forward pass.
+            if _use_batched_clip and buffer_raw_images:
+                stacked = np.concatenate(buffer_raw_images, axis=0)  # (B, T, C, H, W)
+                with torch.no_grad():
+                    vf_batch = _orig_encode(stacked)  # (B, T, img_dim) on CPU
+                for i, p in enumerate(buffer_processed):
+                    p["video_features"] = vf_batch[i : i + 1]  # (1, T, img_dim)
+
             batch_results = _run_batched_inference(
                 reward_model=reward_model,
                 processed_list=buffer_processed,
@@ -532,13 +566,19 @@ def compute_sarm_progress(
             )
             for i, key in enumerate(buffer_keys):
                 frame_results[key] = batch_results[i]
+
         except Exception as e:
             logging.warning(f"Batch failed, falling back to per-frame: {e}")
             for i, key in enumerate(buffer_keys):
                 try:
                     sv, dv = np.nan, np.nan
                     p = buffer_processed[i]
-                    vf = p["video_features"].to(device)
+                    # Re-encode this individual frame if we were using batched CLIP.
+                    if _use_batched_clip and i < len(buffer_raw_images):
+                        with torch.no_grad():
+                            vf = _orig_encode(buffer_raw_images[i]).to(device)
+                    else:
+                        vf = p["video_features"].to(device)
                     tf = p["text_features"].to(device)
                     sf = p.get("state_features")
                     if sf is not None:
@@ -565,6 +605,7 @@ def compute_sarm_progress(
         finally:
             buffer_keys.clear()
             buffer_processed.clear()
+            buffer_raw_images.clear()
 
     for episode_idx, frame_idx, task in tqdm(compute_items, desc="Frames"):
         try:
@@ -577,12 +618,31 @@ def compute_sarm_progress(
             }
             if state_key in sample:
                 batch[state_key] = sample[state_key]
-            with torch.no_grad():
-                processed = preprocess(batch)
+
+            # Install mock CLIP encoder so preprocess() defers image encoding.
+            if _use_batched_clip:
+                _mock_collector.clear()
+                _encoding_step._encode_images_batch = _mock_encode
+
+            try:
+                with torch.no_grad():
+                    processed = preprocess(batch)
+            finally:
+                # Always restore the real encoder, even if preprocess raises.
+                if _use_batched_clip:
+                    try:
+                        del _encoding_step._encode_images_batch
+                    except AttributeError:
+                        pass
+
+            if _use_batched_clip and _mock_collector:
+                buffer_raw_images.append(_mock_collector[0])  # (1, T, C, H, W) normalized
+
             buffer_keys.append((episode_idx, frame_idx))
             buffer_processed.append(processed)
             if len(buffer_processed) >= batch_size:
                 _flush_batch()
+
         except Exception as e:
             logging.warning(f"Failed to load frame {frame_idx} (ep {episode_idx}): {e}")
 
