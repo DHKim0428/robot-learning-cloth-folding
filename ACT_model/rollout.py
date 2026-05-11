@@ -141,7 +141,11 @@ def main() -> None:
         device=str(device),
     )
 
-    state_dict = torch.load(args.checkpoint, map_location=device)
+    if str(args.checkpoint).endswith(".safetensors"):
+        from safetensors.torch import load_file as _load_safetensors
+        state_dict = _load_safetensors(args.checkpoint, device=str(device))
+    else:
+        state_dict = torch.load(args.checkpoint, map_location=device)
     if isinstance(state_dict, dict) and "model" in state_dict and not any(
         k.startswith("model") for k in state_dict if k != "model"
     ):
