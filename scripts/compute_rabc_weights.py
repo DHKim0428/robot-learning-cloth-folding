@@ -702,6 +702,12 @@ def main():
     parser.add_argument("--num-visualizations", type=int, default=5)
     parser.add_argument("--output-dir", type=str, default="./sarm_viz")
     parser.add_argument("--push-to-hub", action="store_true", default=True)
+    parser.add_argument(
+        "--push-repo-id",
+        type=str,
+        default=None,
+        help="HuggingFace repo to upload sarm_progress.parquet to (defaults to --dataset-repo-id)",
+    )
     parser.add_argument("--stride", type=int, default=1)
     parser.add_argument(
         "--batch-size",
@@ -763,20 +769,21 @@ def main():
         from huggingface_hub import HfApi
 
         api = HfApi()
+        push_repo = args.push_repo_id or args.dataset_repo_id
         hub_path = "sarm_progress.parquet"
-        print(f"\nUploading to Hub: {args.dataset_repo_id}/{hub_path}")
+        print(f"\nUploading to Hub: {push_repo}/{hub_path}")
         api.upload_file(
             path_or_fileobj=str(output_path),
             path_in_repo=hub_path,
-            repo_id=args.dataset_repo_id,
+            repo_id=push_repo,
             repo_type="dataset",
         )
         print(
-            f"Successfully uploaded to: https://huggingface.co/datasets/{args.dataset_repo_id}/blob/main/{hub_path}"
+            f"Successfully uploaded to: https://huggingface.co/datasets/{push_repo}/blob/main/{hub_path}"
         )
         print("\nTo use in training, add to your config:")
         print("  use_rabc: true")
-        print(f"  rabc_progress_path: hf://datasets/{args.dataset_repo_id}/{hub_path}")
+        print(f"  rabc_progress_path: hf://datasets/{push_repo}/{hub_path}")
         print("  rabc_head_mode: sparse  # or dense")
     else:
         print("\nTo use in training, add to your config:")
