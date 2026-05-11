@@ -9,9 +9,15 @@ lerobot-edit-dataset \
     --operation.episode_indices "[0, 1, 2, 3, 4, 5, 6, 7, 8, 12, 30, 31, 33, 36, 37]"
 
 # set private
-hf upload robot-learning-team43/so101_teleop_private_filtered \
-    /home/mira/.cache/huggingface/lerobot/robot-learning-team43/so101_teleop_private_filtered \
-    --repo-type dataset \
-    --private
+python -c "from huggingface_hub import HfApi; HfApi().update_repo_settings('robot-learning-team43/so101_teleop_private_filtered', repo_type='dataset', private=False)"
+# unset private
+python -c "from huggingface_hub import HfApi; HfApi().update_repo_settings('robot-learning-team43/so101_teleop_private_filtered', repo_type='dataset', private=True)"
 
- lerobot-train   --dataset.repo_id=robot-learning-team43/so101_teleop_private_filtered     --dataset.revision=main  --reward_model.type=sarm   --reward_model.annotation_mode=single_stage   --reward_model.image_key=observation.images.front   --reward_model.push_to_hub=false   --output_dir=outputs/train/sarm_single   --batch_size=32   --steps=5000   --wandb.enable=true   --wandb.project=folding_43
+# wandb api key
+
+export WANDB_API_KEY='xxx'
+export HF_TOKEN='xxx'
+# Run only this
+sudo apt-get install -y ffmpeg
+
+lerobot-train   --dataset.repo_id=robot-learning-team43/so101_teleop_private_filtered     --dataset.revision=main  --reward_model.type=sarm   --reward_model.annotation_mode=single_stage   --reward_model.image_key=observation.images.front   --reward_model.push_to_hub=false   --output_dir=outputs/train/sarm_single   --batch_size=32   --steps=5000   --wandb.enable=true   --wandb.project=folding_43
