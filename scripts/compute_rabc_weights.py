@@ -226,7 +226,7 @@ def _run_batched_inference(
                     head_mode=head_mode_sparse,
                 )
                 sparse_out = _to_numpy(sparse_out)
-                sparse_val_batch = sparse_out[:, center_idx] if sparse_out.ndim == 2 else sparse_out[center_idx]
+                sparse_val_batch = sparse_out[:, center_idx] if sparse_out.ndim == 2 else np.full(len(processed_list), float(sparse_out[center_idx]))
 
             if compute_dense:
                 dense_out = reward_model.calculate_rewards(
@@ -238,7 +238,7 @@ def _run_batched_inference(
                     head_mode=head_mode_dense,
                 )
                 dense_out = _to_numpy(dense_out)
-                dense_val_batch = dense_out[:, center_idx] if dense_out.ndim == 2 else dense_out[center_idx]
+                dense_val_batch = dense_out[:, center_idx] if dense_out.ndim == 2 else np.full(len(processed_list), float(dense_out[center_idx]))
 
             for i in range(len(processed_list)):
                 sv = float(sparse_val_batch[i]) if sparse_val_batch is not None else np.nan
@@ -345,7 +345,7 @@ def visualize_sarm_predictions(
                     sd["viz_stages"][local_idx] = stage_val
 
                     if stride == 1 and sd["target_key"] in buffer_processed[i]:
-                        gt_target = buffer_processed[i][sd["target_key"]][0, target_idx].cpu().item()
+                        gt_target = float(_to_numpy(buffer_processed[i][sd["target_key"]])[0, target_idx])
                         sd["viz_gt_stages"][local_idx] = int(gt_target)
                         sd["viz_gt_progress"][local_idx] = normalize_stage_tau(
                             gt_target,
@@ -595,9 +595,9 @@ def compute_sarm_progress(
         ep_end = ep["dataset_to_index"]
 
         ep_frame_results = {
-            frm: frame_results[(episode_idx, frm)]
-            for (ep, frm) in frame_results
-            if ep == episode_idx
+            frm: frame_results[(ep_idx, frm)]
+            for (ep_idx, frm) in frame_results
+            if ep_idx == episode_idx
         }
 
         computed_indices = np.array(sorted(ep_frame_results.keys()))
