@@ -57,7 +57,7 @@ def load_sarm_resources(
         image_key: [idx / fps for idx in delta_indices],
         state_key: [idx / fps for idx in delta_indices],
     }
-    dataset = LeRobotDataset(dataset_repo_id, delta_timestamps=delta_timestamps)
+    dataset = LeRobotDataset(dataset_repo_id, delta_timestamps=delta_timestamps ,revision='main')
     logging.info(f"Dataset: {dataset.num_episodes} episodes, {dataset.num_frames} frames")
 
     preprocess, _ = make_sarm_pre_post_processors(
