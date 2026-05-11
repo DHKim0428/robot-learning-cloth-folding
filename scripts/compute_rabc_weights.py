@@ -50,7 +50,7 @@ def load_sarm_resources(
     delta_indices = reward_model.config.observation_delta_indices
 
     logging.info(f"Loading dataset: {dataset_repo_id}")
-    temp_dataset = LeRobotDataset(dataset_repo_id, download_videos=True)
+    temp_dataset = LeRobotDataset(dataset_repo_id, download_videos=True,revision='main')
     fps = temp_dataset.fps
 
     delta_timestamps = {
@@ -151,6 +151,12 @@ def visualize_episode(
     print(f"Saved: {output_path}")
 
 
+def _to_numpy(x) -> np.ndarray:
+    if isinstance(x, torch.Tensor):
+        return x.cpu().numpy()
+    return np.asarray(x)
+
+
 def _run_batched_inference(
     reward_model: SARMRewardModel,
     processed_list: list[dict],
@@ -199,9 +205,8 @@ def _run_batched_inference(
                 return_stages=True,
                 head_mode=head_mode_sparse,
             )
-            if isinstance(reward, torch.Tensor):
-                reward = reward.cpu().numpy()
-                stage_probs = stage_probs.cpu().numpy()
+            reward = _to_numpy(reward)
+            stage_probs = _to_numpy(stage_probs)
             for i in range(len(processed_list)):
                 if reward.ndim == 2:
                     results[i] = (reward[i, center_idx], stage_probs[i, center_idx, :])
@@ -220,10 +225,8 @@ def _run_batched_inference(
                     return_all_frames=True,
                     head_mode=head_mode_sparse,
                 )
-                if sparse_out.ndim == 2:
-                    sparse_val_batch = sparse_out[:, center_idx].cpu().numpy()
-                else:
-                    sparse_val_batch = sparse_out[center_idx].cpu().numpy()
+                sparse_out = _to_numpy(sparse_out)
+                sparse_val_batch = sparse_out[:, center_idx] if sparse_out.ndim == 2 else sparse_out[center_idx]
 
             if compute_dense:
                 dense_out = reward_model.calculate_rewards(
@@ -234,10 +237,8 @@ def _run_batched_inference(
                     return_all_frames=True,
                     head_mode=head_mode_dense,
                 )
-                if dense_out.ndim == 2:
-                    dense_val_batch = dense_out[:, center_idx].cpu().numpy()
-                else:
-                    dense_val_batch = dense_out[center_idx].cpu().numpy()
+                dense_out = _to_numpy(dense_out)
+                dense_val_batch = dense_out[:, center_idx] if dense_out.ndim == 2 else dense_out[center_idx]
 
             for i in range(len(processed_list)):
                 sv = float(sparse_val_batch[i]) if sparse_val_batch is not None else np.nan
@@ -722,7 +723,7 @@ def main():
 
     reward_model_path = args.reward_model_path
     if reward_model_path is None:
-        temp_dataset = LeRobotDataset(args.dataset_repo_id, download_videos=False)
+        temp_dataset = LeRobotDataset(args.dataset_repo_id, download_videos=False, revision='main')
         parquet_path = Path(temp_dataset.root) / "sarm_progress.parquet"
         reward_model_path = get_reward_model_path_from_parquet(parquet_path)
         if reward_model_path:
