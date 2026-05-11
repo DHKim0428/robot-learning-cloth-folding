@@ -20,11 +20,11 @@ echo "[init] fetching model from Hub: $POLICY_REPO"
 CHECKPOINT=$(python -c "
 from huggingface_hub import snapshot_download
 import pathlib
-path = snapshot_download('$POLICY_REPO')
-pts = list(pathlib.Path(path).glob('*.pt'))
-if not pts:
-    raise FileNotFoundError(f'No .pt file found in {path}')
-print(pts[0])
+path = pathlib.Path(snapshot_download('$POLICY_REPO'))
+candidates = list(path.glob('*.pt')) or list(path.glob('model.safetensors'))
+if not candidates:
+    raise FileNotFoundError(f'No .pt or model.safetensors found in {path}')
+print(candidates[0])
 ")
 echo "[init] checkpoint: $CHECKPOINT"
 
