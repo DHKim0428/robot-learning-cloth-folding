@@ -492,148 +492,151 @@ def compute_sarm_progress(
 
     center_idx = reward_model.config.n_obs_steps // 2
 
-    for episode_idx in tqdm(range(num_episodes), desc="Episodes"):
+    # Phase 1: collect every (episode_idx, frame_idx, task) to compute across all episodes
+    compute_items: list[tuple[int, int, str]] = []
+    for episode_idx in range(num_episodes):
+        ep = dataset.meta.episodes[episode_idx]
+        ep_start = ep["dataset_from_index"]
+        ep_end = ep["dataset_to_index"]
+        task = dataset[ep_start].get("task", "perform the task")
+        all_ep_indices = generate_all_frame_indices(ep_start, ep_end, frame_gap)
+        if stride > 1:
+            ep_compute = [idx for idx in all_ep_indices if (idx - ep_start) % stride == 0]
+            last_frame = ep_end - 1
+            if last_frame not in ep_compute:
+                ep_compute.append(last_frame)
+            ep_compute = sorted(set(ep_compute))
+        else:
+            ep_compute = all_ep_indices
+        for frame_idx in ep_compute:
+            compute_items.append((episode_idx, frame_idx, task))
+
+    # Phase 2: batched inference across all episodes
+    # key: (episode_idx, frame_idx) -> (sparse_val, dense_val)
+    frame_results: dict[tuple[int, int], tuple[float, float]] = {}
+
+    buffer_keys: list[tuple[int, int]] = []
+    buffer_processed: list[dict] = []
+
+    def _flush_batch():
+        if not buffer_processed:
+            return
+        try:
+            batch_results = _run_batched_inference(
+                reward_model=reward_model,
+                processed_list=buffer_processed,
+                device=device,
+                compute_sparse=compute_sparse,
+                compute_dense=compute_dense,
+                center_idx=center_idx,
+            )
+            for i, key in enumerate(buffer_keys):
+                frame_results[key] = batch_results[i]
+        except Exception as e:
+            logging.warning(f"Batch failed, falling back to per-frame: {e}")
+            for i, key in enumerate(buffer_keys):
+                try:
+                    sv, dv = np.nan, np.nan
+                    p = buffer_processed[i]
+                    vf = p["video_features"].to(device)
+                    tf = p["text_features"].to(device)
+                    sf = p.get("state_features")
+                    if sf is not None:
+                        sf = sf.to(device)
+                    lg = p.get("lengths")
+                    with torch.no_grad():
+                        if compute_sparse:
+                            out = _to_numpy(reward_model.calculate_rewards(
+                                text_embeddings=tf, video_embeddings=vf,
+                                state_features=sf, lengths=lg,
+                                return_all_frames=True, head_mode="sparse",
+                            ))
+                            sv = float(out[0, center_idx] if out.ndim == 2 else out[center_idx])
+                        if compute_dense:
+                            out = _to_numpy(reward_model.calculate_rewards(
+                                text_embeddings=tf, video_embeddings=vf,
+                                state_features=sf, lengths=lg,
+                                return_all_frames=True, head_mode="dense",
+                            ))
+                            dv = float(out[0, center_idx] if out.ndim == 2 else out[center_idx])
+                    frame_results[key] = (sv, dv)
+                except Exception as e2:
+                    logging.warning(f"Failed frame {key}: {e2}")
+        finally:
+            buffer_keys.clear()
+            buffer_processed.clear()
+
+    for episode_idx, frame_idx, task in tqdm(compute_items, desc="Frames"):
+        try:
+            sample = dataset[frame_idx]
+            batch = {
+                image_key: sample[image_key],
+                "task": task,
+                "index": frame_idx,
+                "episode_index": episode_idx,
+            }
+            if state_key in sample:
+                batch[state_key] = sample[state_key]
+            with torch.no_grad():
+                processed = preprocess(batch)
+            buffer_keys.append((episode_idx, frame_idx))
+            buffer_processed.append(processed)
+            if len(buffer_processed) >= batch_size:
+                _flush_batch()
+        except Exception as e:
+            logging.warning(f"Failed to load frame {frame_idx} (ep {episode_idx}): {e}")
+
+    _flush_batch()
+
+    # Phase 3: per-episode interpolation and storage
+    for episode_idx in range(num_episodes):
         ep = dataset.meta.episodes[episode_idx]
         ep_start = ep["dataset_from_index"]
         ep_end = ep["dataset_to_index"]
 
-        task = dataset[ep_start].get("task", "perform the task")
+        ep_frame_results = {
+            frm: frame_results[(episode_idx, frm)]
+            for (ep, frm) in frame_results
+            if ep == episode_idx
+        }
 
-        all_ep_indices = generate_all_frame_indices(ep_start, ep_end, frame_gap)
-        if stride > 1:
-            compute_indices = [idx for idx in all_ep_indices if (idx - ep_start) % stride == 0]
-            last_frame = ep_end - 1
-            if last_frame not in compute_indices:
-                compute_indices.append(last_frame)
-            compute_indices = sorted(set(compute_indices))
-        else:
-            compute_indices = all_ep_indices
-
-        frame_results = {}
-
-        # --- batched inference ---
-        buffer_query_idxs: list[int] = []
-        buffer_processed: list[dict] = []
-
-        def _flush_batch():
-            if not buffer_processed:
-                return
-            try:
-                batch_results = _run_batched_inference(
-                    reward_model=reward_model,
-                    processed_list=buffer_processed,
-                    device=device,
-                    compute_sparse=compute_sparse,
-                    compute_dense=compute_dense,
-                    center_idx=center_idx,
-                )
-                for i, q_idx in enumerate(buffer_query_idxs):
-                    frame_results[q_idx] = batch_results[i]
-            except Exception as e:
-                logging.warning(f"Batch failed, falling back to per-frame: {e}")
-                for i, q_idx in enumerate(buffer_query_idxs):
-                    try:
-                        sv, dv = np.nan, np.nan
-                        p = buffer_processed[i]
-                        vf = p["video_features"].to(device)
-                        tf = p["text_features"].to(device)
-                        sf = p.get("state_features")
-                        if sf is not None:
-                            sf = sf.to(device)
-                        lg = p.get("lengths")
-                        with torch.no_grad():
-                            if compute_sparse:
-                                out = reward_model.calculate_rewards(
-                                    text_embeddings=tf,
-                                    video_embeddings=vf,
-                                    state_features=sf,
-                                    lengths=lg,
-                                    return_all_frames=True,
-                                    head_mode="sparse",
-                                )
-                                sv = float(out[0, center_idx] if out.ndim == 2 else out[center_idx])
-                            if compute_dense:
-                                out = reward_model.calculate_rewards(
-                                    text_embeddings=tf,
-                                    video_embeddings=vf,
-                                    state_features=sf,
-                                    lengths=lg,
-                                    return_all_frames=True,
-                                    head_mode="dense",
-                                )
-                                dv = float(out[0, center_idx] if out.ndim == 2 else out[center_idx])
-                        frame_results[q_idx] = (sv, dv)
-                    except Exception as e2:
-                        logging.warning(f"Failed frame {q_idx}: {e2}")
-            finally:
-                buffer_query_idxs.clear()
-                buffer_processed.clear()
-
-        for query_idx in tqdm(compute_indices, desc=f"  Ep {episode_idx}", leave=False):
-            try:
-                sample = dataset[query_idx]
-                batch = {
-                    image_key: sample[image_key],
-                    "task": task,
-                    "index": query_idx,
-                    "episode_index": episode_idx,
-                }
-                if state_key in sample:
-                    batch[state_key] = sample[state_key]
-
-                with torch.no_grad():
-                    processed = preprocess(batch)
-
-                buffer_query_idxs.append(query_idx)
-                buffer_processed.append(processed)
-
-                if len(buffer_processed) >= batch_size:
-                    _flush_batch()
-
-            except Exception as e:
-                logging.warning(f"Failed to load frame {query_idx}: {e}")
-
-        _flush_batch()  # remainder
-        # -------------------------
-
-        computed_indices = np.array(sorted(frame_results.keys()))
-        computed_sparse = (
-            np.array([frame_results[i][0] for i in computed_indices]) if compute_sparse else None
+        computed_indices = np.array(sorted(ep_frame_results.keys()))
+        ep_sparse = (
+            np.array([ep_frame_results[i][0] for i in computed_indices]) if compute_sparse else None
         )
-        computed_dense = np.array([frame_results[i][1] for i in computed_indices]) if compute_dense else None
+        ep_dense = (
+            np.array([ep_frame_results[i][1] for i in computed_indices]) if compute_dense else None
+        )
 
         all_frame_idx_array = np.arange(ep_start, ep_end)
 
         if stride > 1 and len(computed_indices) > 1:
-            if compute_sparse:
-                interp_sparse = interpolate_progress(computed_indices, computed_sparse, all_frame_idx_array)
-            if compute_dense:
-                interp_dense = interpolate_progress(computed_indices, computed_dense, all_frame_idx_array)
+            interp_sparse = interpolate_progress(computed_indices, ep_sparse, all_frame_idx_array) if compute_sparse else None
+            interp_dense = interpolate_progress(computed_indices, ep_dense, all_frame_idx_array) if compute_dense else None
         else:
-            interp_sparse = computed_sparse if compute_sparse else None
-            interp_dense = computed_dense if compute_dense else None
+            interp_sparse = ep_sparse
+            interp_dense = ep_dense
 
         for i, frame_idx in enumerate(all_frame_idx_array):
-            local_idx = frame_idx - ep_start
             all_indices.append(frame_idx)
             all_episode_indices.append(episode_idx)
-            all_frame_indices.append(local_idx)
+            all_frame_indices.append(frame_idx - ep_start)
             if compute_sparse:
-                if stride > 1 and len(computed_indices) > 1:
+                if interp_sparse is not None and stride > 1 and len(computed_indices) > 1:
                     all_progress_sparse.append(float(interp_sparse[i]))
-                elif frame_idx in frame_results:
-                    all_progress_sparse.append(frame_results[frame_idx][0])
+                elif frame_idx in ep_frame_results:
+                    all_progress_sparse.append(ep_frame_results[frame_idx][0])
                 else:
                     all_progress_sparse.append(np.nan)
             if compute_dense:
-                if stride > 1 and len(computed_indices) > 1:
+                if interp_dense is not None and stride > 1 and len(computed_indices) > 1:
                     all_progress_dense.append(float(interp_dense[i]))
-                elif frame_idx in frame_results:
-                    all_progress_dense.append(frame_results[frame_idx][1])
+                elif frame_idx in ep_frame_results:
+                    all_progress_dense.append(ep_frame_results[frame_idx][1])
                 else:
                     all_progress_dense.append(np.nan)
 
-        torch.cuda.empty_cache()
+    torch.cuda.empty_cache()
 
     table_data = {
         "index": np.array(all_indices, dtype=np.int64),
