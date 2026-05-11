@@ -17,17 +17,15 @@ POLICY_REPO="robot-learning-team43/act_cloth_folding_05_11"
 
 # Download model from Hub (cached after first run)
 echo "[init] fetching model from Hub: $POLICY_REPO"
-CHECKPOINT=$(python - <<'EOF'
+CHECKPOINT=$(python -c "
 from huggingface_hub import snapshot_download
-import os, pathlib
-path = snapshot_download(os.environ["POLICY_REPO"])
-# find the .pt file
-pts = list(pathlib.Path(path).glob("*.pt"))
+import pathlib
+path = snapshot_download('$POLICY_REPO')
+pts = list(pathlib.Path(path).glob('*.pt'))
 if not pts:
-    raise FileNotFoundError(f"No .pt file found in {path}")
+    raise FileNotFoundError(f'No .pt file found in {path}')
 print(pts[0])
-EOF
-)
+")
 echo "[init] checkpoint: $CHECKPOINT"
 
 if ! groups | tr ' ' '\n' | grep -qx dialout; then
