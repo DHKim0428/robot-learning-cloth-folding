@@ -20,6 +20,7 @@ from typing import Any
 
 import torch
 from torch.utils.data import DataLoader
+from tqdm.auto import tqdm
 
 try:
     from torch.utils.tensorboard import SummaryWriter
@@ -369,61 +370,74 @@ def main() -> None:
     step = 0
     last_log_t = time.perf_counter()
     done = False
-    while not done:
-        for batch in dataloader:
-            batch = preprocessor(batch)
-            loss, loss_dict = policy.forward(batch)
+    with tqdm(
+        total=args.num_steps,
+        initial=step,
+        desc="Training",
+        unit="step",
+        dynamic_ncols=True,
+    ) as pbar:
+        while not done:
+            for batch in dataloader:
+                batch = preprocessor(batch)
+                loss, loss_dict = policy.forward(batch)
 
-            optimizer.zero_grad(set_to_none=True)
-            loss.backward()
-            grad_norm = torch.nn.utils.clip_grad_norm_(policy.parameters(), 1.0)
-            optimizer.step()
+                optimizer.zero_grad(set_to_none=True)
+                loss.backward()
+                grad_norm = torch.nn.utils.clip_grad_norm_(policy.parameters(), 1.0)
+                optimizer.step()
 
-            if step % args.log_every == 0:
-                now = time.perf_counter()
-                steps_per_s = args.log_every / max(now - last_log_t, 1e-9)
-                last_log_t = now
+                if step % args.log_every == 0:
+                    now = time.perf_counter()
+                    steps_per_s = args.log_every / max(now - last_log_t, 1e-9)
+                    last_log_t = now
 
-                writer.add_scalar("loss/total", loss.item(), step)
-                writer.add_scalar("lr", optimizer.param_groups[0]["lr"], step)
-                writer.add_scalar("throughput/steps_per_s", steps_per_s, step)
-                loss_items = _loss_dict_items(loss_dict)
-                for key, value in loss_items:
-                    writer.add_scalar(f"loss/{key}", value, step)
-                if wandb_run is not None:
-                    wandb.log(
-                        {
-                            "train/loss": loss.item(),
-                            "train/lr": optimizer.param_groups[0]["lr"],
-                            "train/grad_norm": float(grad_norm),
-                        },
-                        step=step,
+                    writer.add_scalar("loss/total", loss.item(), step)
+                    writer.add_scalar("lr", optimizer.param_groups[0]["lr"], step)
+                    writer.add_scalar("throughput/steps_per_s", steps_per_s, step)
+                    loss_items = _loss_dict_items(loss_dict)
+                    for key, value in loss_items:
+                        writer.add_scalar(f"loss/{key}", value, step)
+                    if wandb_run is not None:
+                        wandb.log(
+                            {
+                                "train/loss": loss.item(),
+                                "train/lr": optimizer.param_groups[0]["lr"],
+                                "train/grad_norm": float(grad_norm),
+                            },
+                            step=step,
+                        )
+                    pbar.set_postfix(
+                        loss=f"{loss.item():.4f}",
+                        lr=f"{optimizer.param_groups[0]['lr']:.2e}",
+                        grad=f"{float(grad_norm):.3f}",
                     )
-                extra = " ".join(f"{key}={value:.4f}" for key, value in loss_items)
-                if extra:
-                    extra = " " + extra
-                print(
-                    f"[step {step:>7d}] loss={loss.item():.4f}"
-                    f"{extra} | {steps_per_s:.1f} step/s"
-                )
+                    extra = " ".join(f"{key}={value:.4f}" for key, value in loss_items)
+                    if extra:
+                        extra = " " + extra
+                    pbar.write(
+                        f"[step {step:>7d}] loss={loss.item():.4f}"
+                        f"{extra} | {steps_per_s:.1f} step/s"
+                    )
 
-            if args.image_log_every > 0 and step % args.image_log_every == 0:
-                for img_key in cfg.image_features:
-                    if img_key in batch:
-                        img = batch[img_key][0].detach().cpu().float()
-                        if img.dim() == 4:
-                            img = img[-1]  # (T, C, H, W) -> latest (C, H, W)
-                        img = img.clamp(0.0, 1.0)
-                        writer.add_image(f"input/{img_key}", img, step)
-                        break
+                if args.image_log_every > 0 and step % args.image_log_every == 0:
+                    for img_key in cfg.image_features:
+                        if img_key in batch:
+                            img = batch[img_key][0].detach().cpu().float()
+                            if img.dim() == 4:
+                                img = img[-1]  # (T, C, H, W) -> latest (C, H, W)
+                            img = img.clamp(0.0, 1.0)
+                            writer.add_image(f"input/{img_key}", img, step)
+                            break
 
-            if step > 0 and step % args.save_every == 0:
-                _save_checkpoint(out_dir, policy, preprocessor, postprocessor, cfg, step)
+                if step > 0 and step % args.save_every == 0:
+                    _save_checkpoint(out_dir, policy, preprocessor, postprocessor, cfg, step)
 
-            step += 1
-            if step >= args.num_steps:
-                done = True
-                break
+                step += 1
+                pbar.update(1)
+                if step >= args.num_steps:
+                    done = True
+                    break
 
     _save_checkpoint(out_dir, policy, preprocessor, postprocessor, cfg, step)
     writer.flush()
