@@ -376,7 +376,7 @@ def main() -> None:
 
             optimizer.zero_grad(set_to_none=True)
             loss.backward()
-            torch.nn.utils.clip_grad_norm_(policy.parameters(), 1.0)
+            grad_norm = torch.nn.utils.clip_grad_norm_(policy.parameters(), 1.0)
             optimizer.step()
 
             if step % args.log_every == 0:
@@ -393,10 +393,9 @@ def main() -> None:
                 if wandb_run is not None:
                     wandb.log(
                         {
-                            "loss/total": loss.item(),
-                            "lr": optimizer.param_groups[0]["lr"],
-                            "throughput/steps_per_s": steps_per_s,
-                            **{f"loss/{key}": value for key, value in loss_items},
+                            "train/loss": loss.item(),
+                            "train/lr": optimizer.param_groups[0]["lr"],
+                            "train/grad_norm": float(grad_norm),
                         },
                         step=step,
                     )
