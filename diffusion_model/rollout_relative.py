@@ -62,6 +62,17 @@ def parse_args() -> argparse.Namespace:
         help="Dataset used to rebuild model features and relative-action normalization stats.",
     )
     parser.add_argument("--dataset-root", type=Path, default=None)
+    parser.add_argument(
+        "--dataset-video-backend",
+        "--dataset.video_backend",
+        dest="dataset_video_backend",
+        default="pyav",
+        choices=["pyav", "torchcodec"],
+        help=(
+            "Video decoder backend used while rebuilding relative-action stats. "
+            "Defaults to pyav to avoid torchcodec shared-library issues."
+        ),
+    )
     add_diffusion_config_args(parser)
     parser.add_argument("--relative-stats-workers", type=int, default=0)
     parser.add_argument("--ports-config", type=Path, default=DEFAULT_PORTS_PATH)
@@ -127,6 +138,7 @@ def _load_relative_policy(args: argparse.Namespace, device: torch.device):
         tmp_cfg,
         episode_filter_mode=saved_cfg.get("training_episode_filter"),
         episodes_whitelist=saved_cfg.get("training_episodes"),
+        video_backend=args.dataset_video_backend,
     )
     print(
         "[init] recomputing relative-action stats for rollout "

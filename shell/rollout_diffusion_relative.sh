@@ -30,6 +30,7 @@ fi
 
 exec python diffusion_model/rollout_relative.py \
     --checkpoint "$CHECKPOINT" \
+    --dataset.video_backend "${DATASET_VIDEO_BACKEND:-pyav}" \
     --ports-config "$REPO_ROOT/config/so101_ports.json" \
     --home-pose "$REPO_ROOT/config/so101_home_pose.json" \
     "$@"

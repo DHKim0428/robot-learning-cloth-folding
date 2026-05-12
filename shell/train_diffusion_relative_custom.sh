@@ -22,11 +22,13 @@ mkdir -p "$(dirname "$OUT_DIR")"
 echo "[hint] relative custom output dir: $OUT_DIR"
 echo "[hint] TensorBoard: tensorboard --logdir $REPO_ROOT/diffusion_model/outputs --port 6006"
 echo "[hint] gripper remains absolute via --relative-exclude-joints gripper"
+echo "[hint] video backend: ${DATASET_VIDEO_BACKEND:-pyav} (override with DATASET_VIDEO_BACKEND=... or --dataset.video_backend=...)"
 echo "[hint] private HF dataset access requires: hf auth login  # or HF_TOKEN"
 echo
 
 exec python diffusion_model/train_custom.py \
     --relative-actions \
     --relative-exclude-joints gripper \
+    --dataset.video_backend "${DATASET_VIDEO_BACKEND:-pyav}" \
     --output-dir "$OUT_DIR" \
     "$@"

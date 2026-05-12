@@ -42,6 +42,11 @@ except ModuleNotFoundError:  # pragma: no cover - depends on local env extras
         def close(self):
             return None
 
+try:
+    import wandb
+except ModuleNotFoundError:  # pragma: no cover - optional dependency
+    wandb = None
+
 _THIS_DIR = Path(__file__).resolve().parent
 if str(_THIS_DIR) not in sys.path:
     sys.path.insert(0, str(_THIS_DIR))
@@ -73,6 +78,18 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         default=None,
         help="Optional local dataset root override. Omit to use HF cache/download.",
+    )
+    parser.add_argument(
+        "--dataset-video-backend",
+        "--dataset.video_backend",
+        dest="dataset_video_backend",
+        default="pyav",
+        choices=["pyav", "torchcodec"],
+        help=(
+            "Video decoder backend for LeRobotDataset. Defaults to pyav to "
+            "match our stable CLI smoke-test path and avoid torchcodec/FFmpeg "
+            "shared-library issues on some servers."
+        ),
     )
     parser.add_argument(
         "--episode-filter",
@@ -129,6 +146,12 @@ def parse_args() -> argparse.Namespace:
         default=0,
         help="Reserved for relative-action stats computation; currently vectorized single-process.",
     )
+    parser.add_argument("--wandb-enable", "--wandb.enable", action="store_true")
+    parser.add_argument("--wandb-project", "--wandb.project", default="lerobot")
+    parser.add_argument("--wandb-entity", "--wandb.entity", default=None)
+    parser.add_argument("--wandb-name", "--wandb.name", default=None)
+    parser.add_argument("--wandb-mode", "--wandb.mode", default=None)
+    parser.add_argument("--wandb-notes", "--wandb.notes", default=None)
     return parser.parse_args()
 
 
@@ -200,6 +223,34 @@ def _loss_dict_items(loss_dict) -> list[tuple[str, float]]:
     return [(str(key), float(value)) for key, value in loss_dict.items()]
 
 
+def _wandb_config(args: argparse.Namespace, cfg, out_dir: Path) -> dict[str, Any]:
+    payload = {key: _jsonable(value) for key, value in vars(args).items()}
+    payload["output_dir"] = str(out_dir)
+    payload["policy_type"] = "diffusion"
+    payload["diffusion_config"] = serializable_diffusion_config(cfg)
+    return payload
+
+
+def _init_wandb(args: argparse.Namespace, cfg, out_dir: Path):
+    if not args.wandb_enable:
+        return None
+    if wandb is None:
+        print("[warn] wandb is not installed; W&B logging disabled.")
+        return None
+
+    run = wandb.init(
+        project=args.wandb_project,
+        entity=args.wandb_entity,
+        name=args.wandb_name or out_dir.name,
+        mode=args.wandb_mode,
+        notes=args.wandb_notes,
+        config=_wandb_config(args, cfg, out_dir),
+        dir=str(out_dir),
+    )
+    print(f"[init] wandb run: {run.url if getattr(run, 'url', None) else run.name}")
+    return run
+
+
 def main() -> None:
     args = parse_args()
     torch.manual_seed(args.seed)
@@ -241,11 +292,12 @@ def main() -> None:
         cfg,
         episode_filter_mode=args.episode_filter,
         episodes_whitelist=args.episodes,
+        video_backend=args.dataset_video_backend,
     )
     print(
         f"[init] training on {dataset.num_episodes} episodes "
         f"({dataset.num_frames} frames) — filter={args.episode_filter}, "
-        f"whitelist={args.episodes}"
+        f"whitelist={args.episodes}, video_backend={args.dataset_video_backend}"
     )
 
     dataset_stats = meta.stats
@@ -293,6 +345,8 @@ def main() -> None:
             f"current state; excluded joints stay absolute: {cfg.relative_exclude_joints}"
         )
 
+    wandb_run = _init_wandb(args, cfg, out_dir)
+
     pin_memory = device.type == "cuda"
     dataloader = DataLoader(
         dataset,
@@ -336,6 +390,16 @@ def main() -> None:
                 loss_items = _loss_dict_items(loss_dict)
                 for key, value in loss_items:
                     writer.add_scalar(f"loss/{key}", value, step)
+                if wandb_run is not None:
+                    wandb.log(
+                        {
+                            "loss/total": loss.item(),
+                            "lr": optimizer.param_groups[0]["lr"],
+                            "throughput/steps_per_s": steps_per_s,
+                            **{f"loss/{key}": value for key, value in loss_items},
+                        },
+                        step=step,
+                    )
                 extra = " ".join(f"{key}={value:.4f}" for key, value in loss_items)
                 if extra:
                     extra = " " + extra
@@ -365,6 +429,8 @@ def main() -> None:
     _save_checkpoint(out_dir, policy, preprocessor, postprocessor, cfg, step)
     writer.flush()
     writer.close()
+    if wandb_run is not None:
+        wandb.finish()
     print(f"[done] final checkpoint at {out_dir}")
 
 

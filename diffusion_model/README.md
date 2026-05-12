@@ -138,7 +138,10 @@ the gripper absolute:
 bash shell/train_diffusion_relative_custom.sh \
   --dataset-root data/so101_teleop_private \
   --num-steps 50000 \
-  --batch-size 8
+  --batch-size 8 \
+  --dataset.video_backend=pyav \
+  --wandb.enable \
+  --wandb.project folding_43
 ```
 
 This path does not rewrite dataset files. At startup it computes action
@@ -159,6 +162,11 @@ bash shell/rollout_diffusion_relative.sh \
 
 It fails fast if the checkpoint was not trained with `--relative-actions`, and
 still requires `--execute` before sending actions to the robot.
+
+The custom trainer supports both TensorBoard and optional W&B. If `wandb` is not
+installed, it prints a warning and continues with local logging only.
+It defaults to `--dataset.video_backend=pyav`, matching the native CLI workaround
+we use on servers where TorchCodec cannot load FFmpeg/CUDA shared libraries.
 
 Custom runs write to `diffusion_model/outputs/diffusion_<timestamp>/`:
 

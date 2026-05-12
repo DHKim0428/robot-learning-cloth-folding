@@ -7,7 +7,7 @@ still supported for explicit debugging or pinned local datasets.
 
 from __future__ import annotations
 
-import sys
+import importlib.util
 from pathlib import Path
 
 from lerobot.datasets import LeRobotDataset, LeRobotDatasetMetadata
@@ -18,9 +18,17 @@ HF_DATASET_ACCESS_HINT = (
     "`hf auth login` or set `HF_TOKEN` / `HUGGINGFACE_HUB_TOKEN`."
 )
 
-# Reuse the project-wide quality filter parser.
-sys.path.insert(0, str(PROJECT_ROOT / "nn-approach-eleni"))
-from features import load_episode_filter as _load_episode_filter  # noqa: E402
+# Reuse the project-wide quality filter parser without putting
+# `nn-approach-eleni/` ahead of `diffusion_model/` on sys.path. That directory
+# also contains a `rollout.py`, so a global path insert can shadow the diffusion
+# rollout module.
+_FEATURES_PATH = PROJECT_ROOT / "nn-approach-eleni" / "features.py"
+_FEATURES_SPEC = importlib.util.spec_from_file_location("_eleni_features", _FEATURES_PATH)
+if _FEATURES_SPEC is None or _FEATURES_SPEC.loader is None:
+    raise ImportError(f"Could not load episode filter parser from {_FEATURES_PATH}")
+_FEATURES_MODULE = importlib.util.module_from_spec(_FEATURES_SPEC)
+_FEATURES_SPEC.loader.exec_module(_FEATURES_MODULE)
+_load_episode_filter = _FEATURES_MODULE.load_episode_filter
 
 
 def _root_kwargs(dataset_root: Path | None) -> dict[str, Path]:
@@ -149,17 +157,20 @@ def build_dataset(
     cfg,
     episode_filter_mode: str | None,
     episodes_whitelist: list[int] | None = None,
+    video_backend: str | None = None,
 ) -> tuple[LeRobotDataset, LeRobotDatasetMetadata]:
     """Load the LeRobotDataset for training."""
     try:
         meta = load_metadata(repo_id, dataset_root)
         delta_timestamps = build_delta_timestamps(cfg, meta.fps)
         episodes = select_episodes(meta, episode_filter_mode, episodes_whitelist)
+        backend_kwargs = {} if video_backend is None else {"video_backend": video_backend}
         dataset = LeRobotDataset(
             repo_id,
             episodes=episodes,
             delta_timestamps=delta_timestamps,
             **_root_kwargs(dataset_root),
+            **backend_kwargs,
         )
     except Exception as exc:  # noqa: BLE001
         raise RuntimeError(
