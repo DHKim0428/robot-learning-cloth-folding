@@ -167,6 +167,10 @@ The custom trainer supports both TensorBoard and optional W&B. If `wandb` is not
 installed, it prints a warning and continues with local logging only.
 It defaults to `--dataset.video_backend=pyav`, matching the native CLI workaround
 we use on servers where TorchCodec cannot load FFmpeg/CUDA shared libraries.
+Its optimizer/scheduler path is also aligned with LeRobot diffusion presets:
+Adam with DiffusionConfig betas/eps/weight decay, plus a Diffusers cosine LR
+scheduler with 500 warmup steps unless overridden with `--scheduler-name` or
+`--scheduler-warmup-steps`.
 
 Custom runs write to `diffusion_model/outputs/diffusion_<timestamp>/`:
 

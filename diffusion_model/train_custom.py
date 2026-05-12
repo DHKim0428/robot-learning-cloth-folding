@@ -115,6 +115,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--num-steps", "--steps", type=int, default=50_000)
     parser.add_argument("--lr", type=float, default=None)
     parser.add_argument("--weight-decay", type=float, default=None)
+    parser.add_argument(
+        "--grad-clip-norm",
+        type=float,
+        default=None,
+        help="Gradient clipping norm. Omit to use LeRobot DiffusionConfig's optimizer preset.",
+    )
     parser.add_argument("--num-workers", "--num_workers", type=int, default=4)
     parser.add_argument("--device", default="cuda")
     parser.add_argument(
@@ -208,14 +214,23 @@ def _save_checkpoint(
     print(f"[ckpt] saved to {ckpt_dir}")
 
 
-def _optimizer_defaults(cfg, args: argparse.Namespace) -> tuple[float, float]:
+def _optimizer_defaults(cfg, args: argparse.Namespace) -> tuple[float, float, float]:
     lr = args.lr if args.lr is not None else float(getattr(cfg, "optimizer_lr", 1e-4))
     weight_decay = (
         args.weight_decay
         if args.weight_decay is not None
         else float(getattr(cfg, "optimizer_weight_decay", 1e-6))
     )
-    return lr, weight_decay
+    default_grad_clip = float(cfg.get_optimizer_preset().grad_clip_norm)
+    grad_clip_norm = (
+        args.grad_clip_norm if args.grad_clip_norm is not None else default_grad_clip
+    )
+    return lr, weight_decay, grad_clip_norm
+
+
+def _make_lr_scheduler(optimizer: torch.optim.Optimizer, cfg, num_training_steps: int):
+    """Build the same Diffusers scheduler preset used by native LeRobot diffusion."""
+    return cfg.get_scheduler_preset().build(optimizer, num_training_steps)
 
 
 def _loss_dict_items(loss_dict) -> list[tuple[str, float]]:
@@ -359,13 +374,28 @@ def main() -> None:
         persistent_workers=args.num_workers > 0,
     )
 
-    lr, weight_decay = _optimizer_defaults(cfg, args)
-    optimizer = torch.optim.AdamW(
+    lr, weight_decay, grad_clip_norm = _optimizer_defaults(cfg, args)
+    cfg.optimizer_lr = lr
+    cfg.optimizer_weight_decay = weight_decay
+    optimizer = torch.optim.Adam(
         policy.parameters(),
         lr=lr,
+        betas=tuple(getattr(cfg, "optimizer_betas", (0.95, 0.999))),
+        eps=float(getattr(cfg, "optimizer_eps", 1e-8)),
         weight_decay=weight_decay,
     )
-    print(f"[init] optimizer AdamW lr={lr:g} weight_decay={weight_decay:g}")
+    lr_scheduler = _make_lr_scheduler(optimizer, cfg, args.num_steps)
+    print(
+        "[init] optimizer Adam "
+        f"lr={lr:g} betas={tuple(getattr(cfg, 'optimizer_betas', (0.95, 0.999)))} "
+        f"eps={float(getattr(cfg, 'optimizer_eps', 1e-8)):g} "
+        f"weight_decay={weight_decay:g} grad_clip_norm={grad_clip_norm:g}"
+    )
+    print(
+        "[init] lr scheduler "
+        f"name={cfg.scheduler_name} warmup_steps={cfg.scheduler_warmup_steps} "
+        f"training_steps={args.num_steps}"
+    )
 
     step = 0
     last_log_t = time.perf_counter()
@@ -384,8 +414,19 @@ def main() -> None:
 
                 optimizer.zero_grad(set_to_none=True)
                 loss.backward()
-                grad_norm = torch.nn.utils.clip_grad_norm_(policy.parameters(), 1.0)
+                if grad_clip_norm > 0:
+                    grad_norm = torch.nn.utils.clip_grad_norm_(
+                        policy.parameters(),
+                        grad_clip_norm,
+                    )
+                else:
+                    grad_norm = torch.nn.utils.clip_grad_norm_(
+                        policy.parameters(),
+                        float("inf"),
+                        error_if_nonfinite=False,
+                    )
                 optimizer.step()
+                lr_scheduler.step()
 
                 if step % args.log_every == 0:
                     now = time.perf_counter()

@@ -57,6 +57,8 @@ def build_diffusion_config(
     use_group_norm: bool | None = None,
     pretrained_backbone_weights: str | None = None,
     do_mask_loss_for_padding: bool | None = None,
+    scheduler_name: str | None = None,
+    scheduler_warmup_steps: int | None = None,
 ) -> DiffusionConfig:
     """Construct DiffusionConfig from dataset metadata and optional overrides."""
     features = dataset_to_policy_features(dataset_meta.features)
@@ -87,6 +89,8 @@ def build_diffusion_config(
         "use_group_norm": use_group_norm,
         "pretrained_backbone_weights": pretrained_backbone_weights,
         "do_mask_loss_for_padding": do_mask_loss_for_padding,
+        "scheduler_name": scheduler_name,
+        "scheduler_warmup_steps": scheduler_warmup_steps,
     }
     cfg_kwargs.update(
         {key: value for key, value in optional_overrides.items() if value is not None}
@@ -174,6 +178,17 @@ def add_diffusion_config_args(parser: argparse.ArgumentParser) -> None:
         default=None,
         help="Optional override. Omit to keep LeRobot default.",
     )
+    parser.add_argument(
+        "--scheduler-name",
+        default=None,
+        help="Optional LeRobot/Diffusers LR scheduler override. Default from DiffusionConfig is cosine.",
+    )
+    parser.add_argument(
+        "--scheduler-warmup-steps",
+        type=int,
+        default=None,
+        help="Optional LR warmup override. Default from DiffusionConfig is 500.",
+    )
 
 
 def diffusion_kwargs_from_args(args: argparse.Namespace) -> dict[str, Any]:
@@ -190,6 +205,8 @@ def diffusion_kwargs_from_args(args: argparse.Namespace) -> dict[str, Any]:
         "use_group_norm": args.use_group_norm,
         "pretrained_backbone_weights": args.pretrained_backbone_weights,
         "do_mask_loss_for_padding": args.do_mask_loss_for_padding,
+        "scheduler_name": args.scheduler_name,
+        "scheduler_warmup_steps": args.scheduler_warmup_steps,
     }
 
 
@@ -208,6 +225,8 @@ def serializable_diffusion_config(cfg: DiffusionConfig) -> dict[str, Any]:
         "use_group_norm",
         "pretrained_backbone_weights",
         "do_mask_loss_for_padding",
+        "scheduler_name",
+        "scheduler_warmup_steps",
     ]
     payload: dict[str, Any] = {}
     for key in keys:
