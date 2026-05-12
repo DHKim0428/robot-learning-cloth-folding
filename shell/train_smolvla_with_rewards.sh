@@ -1,0 +1,17 @@
+lerobot-train \
+    --dataset.repo_id=robot-learning-team43/so101_teleop_private_filtered \
+     --dataset.revision=main \
+    --policy.path=lerobot/smolvla_base \
+    --policy.device=cuda \
+    --policy.repo_id=robot-learning-team43/smolvla_rabc \
+    --policy.private=true \
+    --policy.empty_cameras=2 \
+    --batch_size=32 \
+    --steps=100000 \
+    --sample_weighting.type=rabc \
+    --sample_weighting.head_mode=sparse \
+    --sample_weighting.kappa=0.01 \
+    --output_dir=outputs/train/policy_rabc \
+    --wandb.enable=true \
+    --wandb.project=folding_43 \
+    --rename_map='{"observation.images.front": "observation.images.camera1"}'
