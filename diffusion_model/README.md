@@ -83,6 +83,13 @@ Option A: pass the allowed episode list explicitly:
 bash shell/train_diffusion.sh --dataset.episodes='[0,2,5,6,9]'
 ```
 
+Or have the wrapper compute the keep-list from `config/episode_filter.toml`:
+
+```bash
+bash shell/train_diffusion_filtered.sh bad --steps=50000 --batch_size=8
+bash shell/train_diffusion_filtered.sh meh --steps=50000 --batch_size=8
+```
+
 Option B: create a filtered dataset with `lerobot-edit-dataset`, then train on
 that repo id. This preserves the original dataset because the wrapper always
 uses `--new_repo_id`.
@@ -108,6 +115,12 @@ Hub, run:
 ```bash
 PUSH_TO_HUB=true bash shell/filter_diffusion_dataset.sh bad
 ```
+
+If `lerobot-edit-dataset` fails with an episode/video length mismatch, use
+Option A. That error means the source dataset metadata and video frame ranges
+are inconsistent enough that LeRobot's re-encoding path refuses to materialize
+a new dataset, while native training with `--dataset.episodes=...` can still
+avoid the bad episodes without rewriting videos.
 
 The experimental custom trainer still supports `--episode-filter` directly:
 
