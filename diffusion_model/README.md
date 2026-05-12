@@ -128,6 +128,38 @@ The experimental custom trainer still supports `--episode-filter` directly:
 bash shell/train_diffusion_custom.sh --episode-filter --num-steps 50000
 ```
 
+### Experimental relative-action diffusion
+
+The native diffusion wrapper remains the absolute-action baseline. For a
+separate custom-only experiment, use arm-joint relative actions while keeping
+the gripper absolute:
+
+```bash
+bash shell/train_diffusion_relative_custom.sh \
+  --dataset-root data/so101_teleop_private \
+  --num-steps 50000 \
+  --batch-size 8
+```
+
+This path does not rewrite dataset files. At startup it computes action
+normalization stats in relative space from the loaded dataset view, then trains
+the custom diffusion policy on:
+
+```text
+arm action = absolute action - current observation.state
+gripper action = original absolute gripper command
+```
+
+Relative rollout is intentionally a separate entrypoint:
+
+```bash
+bash shell/rollout_diffusion_relative.sh \
+  diffusion_model/outputs/diffusion_relative_<ts>/policy_diffusion.pt
+```
+
+It fails fast if the checkpoint was not trained with `--relative-actions`, and
+still requires `--execute` before sending actions to the robot.
+
 Custom runs write to `diffusion_model/outputs/diffusion_<timestamp>/`:
 
 - `policy_diffusion.pt` — latest plain state dict used by rollout.

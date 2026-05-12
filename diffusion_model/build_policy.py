@@ -30,6 +30,7 @@ if str(_THIS_DIR) not in sys.path:
     sys.path.insert(0, str(_THIS_DIR))
 
 from dataset import HF_DATASET_ACCESS_HINT, load_metadata  # noqa: E402
+from relative_actions import DiffusionAbsoluteActionsStep, DiffusionRelativeActionsStep  # noqa: E402
 
 
 def _optional_tuple(values: list[int] | None) -> tuple[int, int] | None:
@@ -40,7 +41,7 @@ def _optional_tuple(values: list[int] | None) -> tuple[int, int] | None:
     return int(values[0]), int(values[1])
 
 
-def build_diffusion_policy(
+def build_diffusion_config(
     dataset_meta: LeRobotDatasetMetadata,
     *,
     device: str = "cuda",
@@ -56,11 +57,8 @@ def build_diffusion_policy(
     use_group_norm: bool | None = None,
     pretrained_backbone_weights: str | None = None,
     do_mask_loss_for_padding: bool | None = None,
-) -> tuple[DiffusionPolicy, Any, Any, DiffusionConfig]:
-    """Construct DiffusionConfig + DiffusionPolicy + processors.
-
-    Returns `(policy, preprocessor, postprocessor, cfg)`.
-    """
+) -> DiffusionConfig:
+    """Construct DiffusionConfig from dataset metadata and optional overrides."""
     features = dataset_to_policy_features(dataset_meta.features)
     output_features = {
         key: feature
@@ -94,11 +92,50 @@ def build_diffusion_policy(
         {key: value for key, value in optional_overrides.items() if value is not None}
     )
 
-    cfg = DiffusionConfig(**cfg_kwargs)
+    return DiffusionConfig(**cfg_kwargs)
+
+
+def build_diffusion_policy(
+    dataset_meta: LeRobotDatasetMetadata,
+    *,
+    dataset_stats: dict[str, dict[str, Any]] | None = None,
+    use_relative_actions: bool = False,
+    relative_exclude_joints: list[str] | None = None,
+    **config_kwargs,
+) -> tuple[DiffusionPolicy, Any, Any, DiffusionConfig]:
+    """Construct DiffusionConfig + DiffusionPolicy + processors.
+
+    Returns `(policy, preprocessor, postprocessor, cfg)`.
+    """
+    cfg = build_diffusion_config(dataset_meta, **config_kwargs)
+    cfg.use_relative_actions = bool(use_relative_actions)
+    cfg.relative_exclude_joints = list(relative_exclude_joints or ["gripper"])
+    cfg.relative_stats_recomputed = bool(use_relative_actions)
+    cfg.action_names = list(dataset_meta.features["action"].get("names") or [])
+
     policy = DiffusionPolicy(cfg)
     preprocessor, postprocessor = make_diffusion_pre_post_processors(
-        cfg, dataset_stats=dataset_meta.stats
+        cfg, dataset_stats=dataset_stats or dataset_meta.stats
     )
+    if use_relative_actions:
+        relative_step = DiffusionRelativeActionsStep(
+            enabled=True,
+            exclude_joints=cfg.relative_exclude_joints,
+            action_names=cfg.action_names,
+        )
+        absolute_step = DiffusionAbsoluteActionsStep(
+            enabled=True,
+            relative_step=relative_step,
+        )
+        # Base diffusion preprocessing:
+        # Rename -> AddBatch -> Device -> Normalize.
+        # Convert action chunks to relative space after device transfer, before
+        # normalization, so ACTION stats must also be relative-action stats.
+        preprocessor.steps.insert(3, relative_step)
+        # Base diffusion postprocessing:
+        # Unnormalize -> Device(cpu).
+        # Convert relative predictions back to absolute commands before CPU move.
+        postprocessor.steps.insert(1, absolute_step)
     return policy, preprocessor, postprocessor, cfg
 
 
@@ -178,6 +215,16 @@ def serializable_diffusion_config(cfg: DiffusionConfig) -> dict[str, Any]:
         if isinstance(value, tuple):
             value = list(value)
         payload[key] = value
+    payload["use_relative_actions"] = bool(getattr(cfg, "use_relative_actions", False))
+    payload["relative_exclude_joints"] = list(
+        getattr(cfg, "relative_exclude_joints", ["gripper"])
+    )
+    payload["relative_stats_recomputed"] = bool(
+        getattr(cfg, "relative_stats_recomputed", False)
+    )
+    payload["action_names"] = list(getattr(cfg, "action_names", []))
+    payload["training_episode_filter"] = getattr(cfg, "training_episode_filter", None)
+    payload["training_episodes"] = getattr(cfg, "training_episodes", None)
     return payload
 
 
