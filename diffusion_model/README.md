@@ -162,6 +162,16 @@ bash shell/rollout_diffusion_relative.sh \
 
 It fails fast if the checkpoint was not trained with `--relative-actions`, and
 still requires `--execute` before sending actions to the robot.
+For debugging, print the live state, absolute target action, and
+`action-state` delta before executing:
+
+```bash
+bash shell/rollout_diffusion_relative.sh \
+  diffusion_model/outputs/diffusion_relative_<ts>/policy_diffusion.pt \
+  --dry-run \
+  --debug-actions \
+  --abort-on-delta 30
+```
 
 The custom trainer supports both TensorBoard and optional W&B. If `wandb` is not
 installed, it prints a warning and continues with local logging only.

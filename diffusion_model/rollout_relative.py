@@ -91,6 +91,32 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--execute", action="store_true")
     parser.add_argument("--print-every", type=int, default=1)
+    parser.add_argument(
+        "--debug-actions",
+        action="store_true",
+        help=(
+            "Print state, absolute action, and action-state delta. Useful for "
+            "diagnosing relative-action drift; works in dry-run and execute mode."
+        ),
+    )
+    parser.add_argument(
+        "--debug-every",
+        type=int,
+        default=None,
+        help="Debug print period. Defaults to --print-every.",
+    )
+    parser.add_argument(
+        "--warn-delta",
+        type=float,
+        default=15.0,
+        help="Warn when max absolute action-state delta exceeds this value.",
+    )
+    parser.add_argument(
+        "--abort-on-delta",
+        type=float,
+        default=None,
+        help="Abort before sending/continuing if max absolute action-state delta exceeds this value.",
+    )
     parser.add_argument("--no-home-return", action="store_true")
     return parser.parse_args()
 
@@ -170,6 +196,39 @@ def _load_relative_policy(args: argparse.Namespace, device: torch.device):
     return policy, preprocessor, postprocessor, cfg, meta
 
 
+def _as_float(value: Any) -> float | None:
+    if value is None:
+        return None
+    if hasattr(value, "item"):
+        return float(value.item())
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _action_delta_debug(
+    raw_obs: dict[str, Any],
+    action_dict: dict[str, float],
+    action_names: list[str],
+) -> tuple[float, str]:
+    """Return max |action-state| and a compact printable debug line."""
+    parts: list[str] = []
+    max_abs_delta = 0.0
+    for name in action_names:
+        action_value = float(action_dict[name])
+        state_value = _as_float(raw_obs.get(name))
+        if state_value is None:
+            parts.append(f"{name}: state=NA action={action_value:+.3f} delta=NA")
+            continue
+        delta = action_value - state_value
+        max_abs_delta = max(max_abs_delta, abs(delta))
+        parts.append(
+            f"{name}: state={state_value:+.3f} action={action_value:+.3f} delta={delta:+.3f}"
+        )
+    return max_abs_delta, " | ".join(parts)
+
+
 def main() -> None:
     args = parse_args()
     if args.execute and args.dry_run:
@@ -233,11 +292,27 @@ def main() -> None:
                 action = policy.select_action(obs_batch)
             action = postprocessor(action)
             action_dict = _format_action(action, action_names)
+            max_abs_delta, debug_line = _action_delta_debug(raw_obs, action_dict, action_names)
+            if args.abort_on_delta is not None and max_abs_delta > args.abort_on_delta:
+                raise RuntimeError(
+                    f"Aborting: max |action-state| delta {max_abs_delta:.3f} "
+                    f"> --abort-on-delta {args.abort_on_delta:.3f}. {debug_line}"
+                )
+
+            debug_every = args.debug_every if args.debug_every is not None else args.print_every
+            should_debug = args.debug_actions and step % max(debug_every, 1) == 0
+            should_print_basic = (not args.execute) and step % max(args.print_every, 1) == 0
+            if should_debug:
+                warn = " [WARN large-delta]" if max_abs_delta > args.warn_delta else ""
+                print(
+                    f"[debug step {step:4d}] max|action-state|={max_abs_delta:.3f}"
+                    f"{warn} :: {debug_line}"
+                )
 
             if args.execute:
                 robot.send_action(action_dict)
                 sent_any_action = True
-            elif step % max(args.print_every, 1) == 0:
+            elif should_print_basic and not should_debug:
                 pretty = " ".join(f"{key}={value:+.3f}" for key, value in action_dict.items())
                 print(f"[dry-run step {step:4d}] {pretty}")
 
