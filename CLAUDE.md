@@ -15,9 +15,10 @@ The current branch (`shak-diff-model`) begins the **diffusion-policy implementat
 - Towel: **20×20 cm non-white**, used across all three main milestones; main eval is on a standardized white table in the ETH HG Foyer. Bonus uses a TA-chosen towel/position.
 - Eval milestones (5 attempts total, scored by furthest-reached): **grasping** → **single fold** (vertices < 2 cm apart) → **double fold**.
 - Initial towel position is team-chosen in the main eval (gripper tip ≥ 6 cm from towel) — exploit this to make corner detection / grasp approach easier.
+- Final course-compliant policy must be one model that completes the whole task. Do not use or propose separate grasp/fold policies or a handoff-based final method.
 
 ### Open questions (from `docs/PROJECT_QUESTION_LIST.md`) — do not assume answers
-External-camera permission, hybrid/stage-wise system permission, runtime/latency limits, and whether a single fixed policy is required across the 5 main-eval runs are still unresolved with the TAs. Avoid designs that hard-depend on any one of these resolutions.
+External-camera permission, runtime/latency limits, and whether a single fixed checkpoint is required across the 5 main-eval runs are still unresolved with the TAs. Avoid designs that hard-depend on any one of these resolutions.
 
 ## Diffusion policy implementation guidance
 
