@@ -75,6 +75,7 @@ To start recording immediately, jump to [Recording on the Spark machine](docs/so
 - `scripts/teleop_record.py` — teleoperation with full dataset recording (episode management, home-pose return, HF push)
 - `scripts/capture_two_stage_home_pose.py` — teleoperate to a camera-friendly two-stage home pose and save it to `config/so101_two_stage_home_pose.json`
 - `scripts/teleop_record_two_stage.py` — record stage-1 or stage-2 folding demos into `data/lerobot_two_stage/local/so101_two_stage`, with follower/leader home start and recorded return-home appended to each episode
+- `scripts/update_two_stage_episode_manifest.py` — count two-stage episodes and append missing default `quality = "clean"` entries to `config/two_stage_episode_manifest.toml`
 
 ## Two-stage recording quickstart
 
@@ -82,9 +83,12 @@ To start recording immediately, jump to [Recording on the Spark machine](docs/so
 python scripts/capture_two_stage_home_pose.py
 python scripts/teleop_record_two_stage.py --camera --stage 1 --num-episodes 10
 python scripts/teleop_record_two_stage.py --camera --stage 2 --num-episodes 10 --resume
+python scripts/update_two_stage_episode_manifest.py
 ```
 
 Keyboard controls are close to the regular recorder: `Space` starts an episode, `Right` finishes the episode and saves it after appending the return-home segment, `Left` finishes the episode and discards it after returning home, and `Esc` aborts the session without saving the current episode.
+
+Use `python scripts/update_two_stage_episode_manifest.py --count` to print current two-stage dataset counts by stage without writing anything.
 
 ## Important docs
 - `docs/project_info.md` — project rules summary

@@ -1,0 +1,418 @@
+# Two-stage folding episode manifest.
+#
+# This file is append-only by convention. Do not rewrite existing episode
+# entries; update individual values only when intentionally relabeling data.
+#
+# Each episode entry should look like:
+#
+# [episodes."0"]
+# stage = 1
+# quality = "clean"
+# notes = ""
+
+[episodes]
+
+[episodes."0"]
+stage = 1
+quality = "clean"
+notes = ""
+
+[episodes."1"]
+stage = 1
+quality = "clean"
+notes = ""
+
+[episodes."2"]
+stage = 1
+quality = "clean"
+notes = ""
+
+[episodes."3"]
+stage = 1
+quality = "clean"
+notes = ""
+
+[episodes."4"]
+stage = 1
+quality = "clean"
+notes = ""
+
+[episodes."5"]
+stage = 1
+quality = "clean"
+notes = ""
+
+[episodes."6"]
+stage = 1
+quality = "clean"
+notes = ""
+
+[episodes."7"]
+stage = 1
+quality = "clean"
+notes = ""
+
+[episodes."8"]
+stage = 1
+quality = "clean"
+notes = ""
+
+[episodes."9"]
+stage = 1
+quality = "clean"
+notes = ""
+
+[episodes."10"]
+stage = 1
+quality = "clean"
+notes = ""
+
+[episodes."11"]
+stage = 1
+quality = "clean"
+notes = ""
+
+[episodes."12"]
+stage = 1
+quality = "clean"
+notes = ""
+
+[episodes."13"]
+stage = 1
+quality = "clean"
+notes = ""
+
+[episodes."14"]
+stage = 1
+quality = "clean"
+notes = ""
+
+[episodes."15"]
+stage = 1
+quality = "clean"
+notes = ""
+
+[episodes."16"]
+stage = 1
+quality = "clean"
+notes = ""
+
+[episodes."17"]
+stage = 1
+quality = "clean"
+notes = ""
+
+[episodes."18"]
+stage = 1
+quality = "clean"
+notes = ""
+
+[episodes."19"]
+stage = 1
+quality = "clean"
+notes = ""
+
+[episodes."20"]
+stage = 2
+quality = "clean"
+notes = ""
+
+[episodes."21"]
+stage = 2
+quality = "clean"
+notes = ""
+
+[episodes."22"]
+stage = 2
+quality = "clean"
+notes = ""
+
+[episodes."23"]
+stage = 2
+quality = "clean"
+notes = ""
+
+[episodes."24"]
+stage = 2
+quality = "clean"
+notes = ""
+
+[episodes."25"]
+stage = 2
+quality = "clean"
+notes = ""
+
+[episodes."26"]
+stage = 2
+quality = "clean"
+notes = ""
+
+[episodes."27"]
+stage = 2
+quality = "clean"
+notes = ""
+
+[episodes."28"]
+stage = 2
+quality = "clean"
+notes = ""
+
+[episodes."29"]
+stage = 2
+quality = "clean"
+notes = ""
+
+[episodes."30"]
+stage = 2
+quality = "clean"
+notes = ""
+
+[episodes."31"]
+stage = 2
+quality = "clean"
+notes = ""
+
+[episodes."32"]
+stage = 2
+quality = "clean"
+notes = ""
+
+[episodes."33"]
+stage = 2
+quality = "clean"
+notes = ""
+
+[episodes."34"]
+stage = 2
+quality = "clean"
+notes = ""
+
+[episodes."35"]
+stage = 2
+quality = "clean"
+notes = ""
+
+[episodes."36"]
+stage = 2
+quality = "clean"
+notes = ""
+
+[episodes."37"]
+stage = 2
+quality = "clean"
+notes = ""
+
+[episodes."38"]
+stage = 2
+quality = "clean"
+notes = ""
+
+[episodes."39"]
+stage = 2
+quality = "clean"
+notes = ""
+
+[episodes."40"]
+stage = 1
+quality = "clean"
+notes = ""
+
+[episodes."41"]
+stage = 1
+quality = "clean"
+notes = ""
+
+[episodes."42"]
+stage = 1
+quality = "clean"
+notes = ""
+
+[episodes."43"]
+stage = 1
+quality = "clean"
+notes = ""
+
+[episodes."44"]
+stage = 1
+quality = "clean"
+notes = ""
+
+[episodes."45"]
+stage = 1
+quality = "clean"
+notes = ""
+
+[episodes."46"]
+stage = 1
+quality = "clean"
+notes = ""
+
+[episodes."47"]
+stage = 1
+quality = "clean"
+notes = ""
+
+[episodes."48"]
+stage = 1
+quality = "clean"
+notes = ""
+
+[episodes."49"]
+stage = 1
+quality = "clean"
+notes = ""
+
+[episodes."50"]
+stage = 2
+quality = "clean"
+notes = ""
+
+[episodes."51"]
+stage = 2
+quality = "clean"
+notes = ""
+
+[episodes."52"]
+stage = 2
+quality = "clean"
+notes = ""
+
+[episodes."53"]
+stage = 2
+quality = "clean"
+notes = ""
+
+[episodes."54"]
+stage = 2
+quality = "clean"
+notes = ""
+
+[episodes."55"]
+stage = 2
+quality = "clean"
+notes = ""
+
+[episodes."56"]
+stage = 2
+quality = "clean"
+notes = ""
+
+[episodes."57"]
+stage = 2
+quality = "clean"
+notes = ""
+
+[episodes."58"]
+stage = 2
+quality = "clean"
+notes = ""
+
+[episodes."59"]
+stage = 2
+quality = "clean"
+notes = ""
+
+[episodes."60"]
+stage = 2
+quality = "clean"
+notes = ""
+
+[episodes."61"]
+stage = 2
+quality = "clean"
+notes = ""
+
+[episodes."62"]
+stage = 2
+quality = "clean"
+notes = ""
+
+[episodes."63"]
+stage = 2
+quality = "clean"
+notes = ""
+
+[episodes."64"]
+stage = 2
+quality = "clean"
+notes = ""
+
+[episodes."65"]
+stage = 2
+quality = "clean"
+notes = ""
+
+[episodes."66"]
+stage = 2
+quality = "clean"
+notes = ""
+
+[episodes."67"]
+stage = 2
+quality = "clean"
+notes = ""
+
+[episodes."68"]
+stage = 2
+quality = "clean"
+notes = ""
+
+[episodes."69"]
+stage = 2
+quality = "clean"
+notes = ""
+
+[episodes."70"]
+stage = 2
+quality = "clean"
+notes = ""
+
+[episodes."71"]
+stage = 2
+quality = "clean"
+notes = ""
+
+[episodes."72"]
+stage = 2
+quality = "clean"
+notes = ""
+
+[episodes."73"]
+stage = 2
+quality = "clean"
+notes = ""
+
+[episodes."74"]
+stage = 2
+quality = "clean"
+notes = ""
+
+[episodes."75"]
+stage = 2
+quality = "clean"
+notes = ""
+
+[episodes."76"]
+stage = 2
+quality = "clean"
+notes = ""
+
+[episodes."77"]
+stage = 2
+quality = "clean"
+notes = ""
+
+[episodes."78"]
+stage = 2
+quality = "clean"
+notes = ""
+
+[episodes."79"]
+stage = 2
+quality = "clean"
+notes = ""
+
+[episodes."80"]
+stage = 2
+quality = "clean"
+notes = ""
