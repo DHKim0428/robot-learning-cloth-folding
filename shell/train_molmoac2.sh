@@ -33,7 +33,7 @@ lerobot-train \
     --dataset.revision=main \
     --policy.type=molmoact2 \
     --policy.checkpoint_path=allenai/MolmoAct2-SO100_101 \
-    --policy.device=cpu \
+    --policy.device=cuda \
     --policy.action_mode=both \
     --policy.chunk_size=30 \
     --policy.n_action_steps=30 \
@@ -55,7 +55,7 @@ lerobot-train \
     --job_name=molmoact2_cloth_rabc \
     --output_dir=outputs/molmoact2_cloth_rabc \
     --steps=10000 \
-    --batch_size=16 \
+    --batch_size=32 \
     --num_workers=4 \
     --log_freq=20 \
     --eval_freq=-1 \
