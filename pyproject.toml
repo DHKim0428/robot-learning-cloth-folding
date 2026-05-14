@@ -5,6 +5,7 @@ requires-python = ">=3.12,<3.13"
 dependencies = [
       "lerobot[dataset,sarm,training,feetech,viz,smolvla,molmoact2]",
       "pynput>=1.8.1",
+      "scipy>=1.17.1",
       "torch",
       "torchvision",
 ]
