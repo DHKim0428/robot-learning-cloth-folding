@@ -40,5 +40,5 @@ lerobot-train \
     --sample_weighting.kappa=0.06 \
     --wandb.project=folding_43 \
     --wandb.entity=folding_43 \
-    --batch_size=64 \
+    --batch_size=32 \
     --policy.push_to_hub=false
