@@ -41,4 +41,6 @@ lerobot-train \
     --wandb.project=folding_43 \
     --wandb.entity=folding_43 \
     --batch_size=32 \
+    --save_checkpoint=true \
+    --save_freq=5000 \
     --policy.push_to_hub=false

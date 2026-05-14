@@ -35,6 +35,7 @@ lerobot-train \
     --policy.checkpoint_path=allenai/MolmoAct2-SO100_101 \
     --policy.device=cuda \
     --policy.action_mode=both \
+    --policy.enable_lora_vlm=true \
     --policy.chunk_size=30 \
     --policy.n_action_steps=30 \
     --policy.setup_type="single so100/so101 robotic arm in molmoact2" \
@@ -44,7 +45,7 @@ lerobot-train \
     --policy.num_flow_timesteps=8 \
     --policy.gradient_checkpointing=true \
     --policy.freeze_embedding=true \
-    --policy.normalize_gripper=false \
+    --policy.normalize_gripper=true \
     --policy.enable_knowledge_insulation=false \
     --policy.push_to_hub=false \
     --sample_weighting.type=rabc \
@@ -54,10 +55,10 @@ lerobot-train \
     --wandb.project=folding_43 \
     --job_name=molmoact2_cloth_rabc \
     --output_dir=outputs/molmoact2_cloth_rabc \
-    --steps=10000 \
-    --batch_size=32 \
+    --steps=20000 \
+    --batch_size=16 \
     --num_workers=4 \
     --log_freq=20 \
     --eval_freq=-1 \
     --save_checkpoint=true \
-    --save_freq=1000
+    --save_freq=2000
