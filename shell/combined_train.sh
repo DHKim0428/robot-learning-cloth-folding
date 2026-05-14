@@ -13,6 +13,7 @@ lerobot-train \
     --policy.use_relative_actions=true \
     --policy.relative_exclude_joints='["gripper"]' \
     --wandb.enable=true \
+    --wandb.disable_artifact=true \
     --policy.dtype=bfloat16 \
     --policy.freeze_vision_encoder=false \
     --policy.train_expert_only=false \
@@ -41,6 +42,7 @@ lerobot-train \
     --policy.device=cuda \
     --policy.action_mode=both \
     --policy.enable_lora_vlm=true \
+    --wandb.disable_artifact=true \
     --policy.chunk_size=30 \
     --policy.n_action_steps=30 \
     --policy.setup_type="single so100/so101 robotic arm in molmoact2" \
