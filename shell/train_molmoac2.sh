@@ -60,4 +60,4 @@ lerobot-train \
     --log_freq=20 \
     --eval_freq=-1 \
     --save_checkpoint=true \
-    --save_freq=2000
+    --save_freq=1000
