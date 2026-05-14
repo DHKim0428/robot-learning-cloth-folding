@@ -4,7 +4,7 @@ Mirrors `scripts/replay_episode.py` but feeds live camera+state into a
 trained ACT policy instead of replaying a recorded episode.
 
 Usage:
-    bash shell/rollout_policies.sh ACT_model/outputs/<run>/policy_act.pt
+    bash shell/rollout_act.sh ACT_model/outputs/<run>/policy_act.pt
 or:
     python ACT_model/rollout.py --checkpoint <path> [--dry-run]
 """
@@ -188,7 +188,7 @@ def main() -> None:
     if args.home_pose.exists():
         home_pose = load_home_pose(args.home_pose)
 
-    robot.connect(calibrate=False)
+    robot.connect()
     sent_any_action = False
     try:
         if args.dry_run:

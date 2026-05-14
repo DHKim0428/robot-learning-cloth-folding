@@ -10,12 +10,13 @@ lerobot-train \
     --steps=100000 \
     --sample_weighting.type=rabc \
     --sample_weighting.head_mode=sparse \
-    --sample_weighting.kappa=0.055 \
+    --sample_weighting.kappa=0.01 \
     --output_dir=outputs/train/policy_rabc \
     --wandb.enable=true \
     --wandb.project=folding_43 \
     --wandb.entity=folding_43 \
     --rename_map='{"observation.images.front": "observation.images.camera1"}'
+
 
 
 lerobot-train \

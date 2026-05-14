@@ -34,9 +34,9 @@ tensorboard --logdir ACT_model/outputs --port 6006
 newgrp dialout
 conda activate lerobot
 # 1) verify predicted actions look sane without moving the arm:
-``bash shell/rollout_policies.sh ACT_model/outputs/act_<ts>/policy_act.pt --dry-run
+bash shell/rollout_act.sh ACT_model/outputs/act_<ts>/policy_act.pt --dry-run
 # 2) actually drive the robot:
-bash shell/rollout_policies.sh ACT_model/outputs/act_<ts>/policy_act.pt
+bash shell/rollout_act.sh ACT_model/outputs/act_<ts>/policy_act.pt
 ```
 
 `--dry-run` keeps the camera + observation read loop running so the
