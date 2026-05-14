@@ -19,7 +19,7 @@ python3 -c "import pandas as pd; from huggingface_hub import HfApi, hf_hub_downl
 
 
 lerobot-train \
-    --dataset.repo_id=robot-learning-team43/so101_teleop_private_filtered \
+    --dataset.repo_id=robot-learning-team43/filtered_relative_action \
     --dataset.revision=main \
     --policy.type=pi05 \
     --output_dir=./outputs/pi05_training \
