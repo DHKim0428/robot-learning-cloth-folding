@@ -58,8 +58,8 @@ fi
 git -C "$LEROBOT_DIR" checkout "$LEROBOT_COMMIT"
 
 echo "[setup] installing lerobot[diffusion] + peft"
-"$PIP" install -e "$LEROBOT_DIR[diffusion]" --quiet
-"$PIP" install peft --quiet
+"$PIP" install -e "$LEROBOT_DIR[diffusion]" --quiet --use-deprecated=legacy-resolver
+"$PIP" install peft --quiet --use-deprecated=legacy-resolver
 
 # ---------------------------------------------------------------------------
 # 3. HF write preflight (fail fast before any GPU time)
