@@ -153,7 +153,7 @@ echo "[watcher] background upload process started (PID=$WATCHER_PID, poll every 
 # 6. Training
 # ---------------------------------------------------------------------------
 echo "[train] starting at $(date)"
-"$PY" diffusion-policy/train.py \
+PYTHONUNBUFFERED=1 "$PY" diffusion-policy/train.py \
     --output-dir "$OUTPUT_DIR" \
     --episode-filter \
     --backbone dinov2 \
