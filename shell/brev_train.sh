@@ -47,7 +47,10 @@ PIP="$VENV_DIR/bin/pip"
 
 if [ ! -d "$VENV_DIR" ]; then
     echo "[setup] creating venv at $VENV_DIR"
-    python3 -m venv "$VENV_DIR"
+    # lerobot requires Python >=3.12; prefer python3.12 explicitly
+    PY3=$(command -v python3.12 || command -v python3 || true)
+    : "${PY3:?Could not find python3.12 — install it first: sudo apt install python3.12 python3.12-venv}"
+    "$PY3" -m venv "$VENV_DIR"
 fi
 
 LEROBOT_DIR="$(dirname "$REPO_ROOT")/lerobot"
