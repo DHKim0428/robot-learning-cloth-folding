@@ -3,14 +3,15 @@ name = "robot-learning-cloth-folding"
 version = "0.1.0"
 requires-python = ">=3.12,<3.13"
 dependencies = [
-      "lerobot[dataset,sarm,training,feetech,viz,smolvla]",
+      "lerobot[dataset,sarm,training,feetech,viz,smolvla,molmoact2]",
       "pynput>=1.8.1",
+      "scipy>=1.17.1",
       "torch",
       "torchvision",
 ]
 
 [tool.uv.sources]
-lerobot = { git = "https://github.com/huggingface/lerobot.git", rev = "main" }
+lerobot = { path = "molmoact2", editable = true }
 torch = { index = "pytorch-cu128" }
 torchvision = { index = "pytorch-cu128" }
 

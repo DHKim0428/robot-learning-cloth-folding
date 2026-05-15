@@ -1,0 +1,4 @@
+[submodule "molmoact2"]
+	path = molmoact2
+	url = https://github.com/allenai/lerobot
+	branch = molmoact2-policy
