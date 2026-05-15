@@ -9,4 +9,6 @@ lerobot-rollout \
     --fps=30 \
     --task="Fold the towel diagonally twice" \
     --inference.type=rtc \
-    --inference.rtc.execution_horizon=10
+    --inference.rtc.execution_horizon=10 \
+    --inference.rtc.max_guidance_weight=10.0 \
+    --inference.rtc.prefix_attention_schedule=EXP
