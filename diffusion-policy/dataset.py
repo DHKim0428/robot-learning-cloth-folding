@@ -1,8 +1,12 @@
-"""LeRobotDataset wrapper for ACT training.
+"""LeRobotDataset wrapper for Diffusion Policy training.
 
-Builds the right `delta_timestamps` for action chunking and applies the
-project-wide episode filter (`config/episode_filter.toml`) by passing an
-explicit `episodes=[...]` list to `LeRobotDataset`.
+Builds the right ``delta_timestamps`` for action chunking and applies the
+project-wide episode filter (``config/episode_filter.toml``) by passing an
+explicit ``episodes=[...]`` list to ``LeRobotDataset``.
+
+The ``DiffusionConfig`` exposes the same ``observation_delta_indices`` /
+``action_delta_indices`` / ``image_features`` attributes that ACT does, so
+this module is the ACT version verbatim modulo the docstring.
 """
 
 from __future__ import annotations
@@ -31,7 +35,7 @@ def _make_delta_timestamps(delta_indices, fps: int) -> list[float]:
 
 
 def build_delta_timestamps(cfg, fps: int) -> dict[str, list[float]]:
-    """Build the `delta_timestamps` dict that feeds ACT-style action chunking."""
+    """Build the ``delta_timestamps`` dict that feeds diffusion action chunking."""
     delta = {"action": _make_delta_timestamps(cfg.action_delta_indices, fps)}
     delta |= {
         k: _make_delta_timestamps(cfg.observation_delta_indices, fps)
@@ -47,7 +51,7 @@ def select_episodes(
 ) -> list[int] | None:
     """Resolve the final list of episode indices to load.
 
-    - If `episodes_whitelist` is provided, use it verbatim (handy for overfit tests).
+    - If ``episodes_whitelist`` is provided, use it verbatim (handy for overfit tests).
     - Otherwise, take all episodes minus the filter set.
     - Returns None when no filtering is needed (LeRobotDataset then loads all).
     """
@@ -72,8 +76,8 @@ def _episode_bounds(meta: LeRobotDatasetMetadata) -> dict[int, tuple[int, int]]:
     """Return canonical absolute frame bounds for each episode.
 
     Some local caches can contain stale parquet files after recording or syncing.
-    `info.json` still carries the canonical totals, so only the first
-    `total_episodes` metadata rows are trusted here.
+    ``info.json`` still carries the canonical totals, so only the first
+    ``total_episodes`` metadata rows are trusted here.
     """
     bounds: dict[int, tuple[int, int]] = {}
     for row_idx in range(min(meta.total_episodes, len(meta.episodes))):
