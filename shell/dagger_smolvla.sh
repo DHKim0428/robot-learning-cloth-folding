@@ -33,7 +33,7 @@ python scripts/goto_start_pose.py --port /dev/ttyACM1 && \
 # =============================================================================
 # MODE 1: CORRECTIONS-ONLY  (only human-correction windows are saved)
 # =============================================================================
-python scripts/rollout_arrows.py \
+lerobot-rollout \
     --policy.path=robot-learning-team43/smoll_vla_b32_80000_reward \
     --robot.type=so101_follower \
     --robot.port=/dev/ttyACM1 \
@@ -62,7 +62,7 @@ python scripts/rollout_arrows.py \
 # =============================================================================
 # MODE 2: CONTINUOUS  (all frames recorded, tagged intervention=true/false)
 # =============================================================================
-# python scripts/rollout_arrows.py \
+# lerobot-rollout \
 #     --policy.path=robot-learning-team43/smoll_vla_b32_80000_reward \
 #     --robot.type=so101_follower \
 #     --robot.port=/dev/ttyACM1 \

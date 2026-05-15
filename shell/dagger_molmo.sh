@@ -34,7 +34,7 @@ python scripts/goto_start_pose.py --port /dev/ttyACM1 && \
 # MODE 1: CORRECTIONS-ONLY  (only human-correction windows are saved)
 # =============================================================================
 python scripts/rollout_arrows.py \
-    --policy.path=robot-learning-team43/molmo_b16_lora_reward_8000 \
+    --policy.path=robot-learning-team43/molmo_b16_lora_reward_18000 \
     --robot.type=so101_follower \
     --robot.port=/dev/ttyACM1 \
     --robot.id=follower \
