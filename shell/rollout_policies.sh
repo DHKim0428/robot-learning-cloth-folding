@@ -46,8 +46,4 @@ lerobot-rollout \
       --inference.rtc.execution_horizon=10 \
       --dataset.single_task="SO101 teleoperation task" 
 
-# optionla
---dataset.private=true \
-# optional
---strategy.record_autonomous=true
 
