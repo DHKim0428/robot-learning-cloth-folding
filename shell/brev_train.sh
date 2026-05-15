@@ -63,6 +63,15 @@ if [ ! -d "$LEROBOT_DIR" ]; then
 fi
 git -C "$LEROBOT_DIR" checkout "$LEROBOT_COMMIT"
 
+# groot_n1.py at this commit has a Python 3.12 dataclass ordering bug.
+# Comment out the eager import of modeling_groot — we never use Groot.
+GROOT_INIT="$LEROBOT_DIR/src/lerobot/policies/groot/__init__.py"
+sed -i 's|^from .modeling_groot import GrootPolicy|# from .modeling_groot import GrootPolicy  # patched: py3.12 compat|' "$GROOT_INIT"
+echo "[patch] groot/__init__.py patched for Python 3.12 compatibility"
+
+echo "[setup] installing system EGL headers (required by egl_probe)"
+sudo apt-get install -y libegl1-mesa-dev libgl1-mesa-dev libgles2-mesa-dev > /dev/null 2>&1
+
 echo "[setup] installing lerobot[diffusion] + peft"
 "$PIP" install -e "$LEROBOT_DIR[diffusion]" $PIP_QUIET --use-deprecated=legacy-resolver
 "$PIP" install peft $PIP_QUIET --use-deprecated=legacy-resolver
