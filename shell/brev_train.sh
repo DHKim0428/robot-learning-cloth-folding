@@ -17,6 +17,7 @@
 #   NUM_WORKERS    default: 8
 #   SAVE_EVERY     default: 10000
 #   LEROBOT_COMMIT default: fc6c94c82a4624bdfeffffc7a30dd00c67b2065c
+#   VERBOSE        default: 0  — set to 1 to show full pip output
 
 set -euo pipefail
 exec > >(tee -a brev_train.log) 2>&1
@@ -31,6 +32,8 @@ BATCH_SIZE="${BATCH_SIZE:-256}"
 NUM_WORKERS="${NUM_WORKERS:-8}"
 SAVE_EVERY="${SAVE_EVERY:-10000}"
 LEROBOT_COMMIT="${LEROBOT_COMMIT:-fc6c94c82a4624bdfeffffc7a30dd00c67b2065c}"
+VERBOSE="${VERBOSE:-0}"
+PIP_QUIET=$( [ "$VERBOSE" = "1" ] && echo "" || echo "--quiet" )
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
@@ -61,8 +64,8 @@ fi
 git -C "$LEROBOT_DIR" checkout "$LEROBOT_COMMIT"
 
 echo "[setup] installing lerobot[diffusion] + peft"
-"$PIP" install -e "$LEROBOT_DIR[diffusion]" --quiet --use-deprecated=legacy-resolver
-"$PIP" install peft --quiet --use-deprecated=legacy-resolver
+"$PIP" install -e "$LEROBOT_DIR[diffusion]" $PIP_QUIET --use-deprecated=legacy-resolver
+"$PIP" install peft $PIP_QUIET --use-deprecated=legacy-resolver
 
 # ---------------------------------------------------------------------------
 # 3. HF write preflight (fail fast before any GPU time)
