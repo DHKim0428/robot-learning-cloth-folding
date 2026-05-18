@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# DAgger (Human-in-the-Loop) rollout with SmolVLA
+# DAgger (Human-in-the-Loop) rollout with MolmoAct2
 #
 # Two recording modes — uncomment ONE block below:
 #
@@ -10,19 +10,20 @@
 #     Use Enter to push the dataset to the Hub on demand.
 #     Good for: collecting a small set of clean correction demos.
 #
-#   CONTINUOUS (sentry-style, records everything)
+#   FULL-EPISODE ON INTERVENTION
 #     record_autonomous=true
-#     Both autonomous and correction frames are recorded.
+#     Both autonomous and correction frames are buffered from the start.
 #     Frames are tagged with intervention=true/false.
-#     Episodes rotate automatically based on video file size.
-#     Good for: building a large mixed dataset for DAgger fine-tuning.
+#     Press → after a rollout: if there was any intervention, save the whole
+#     episode; otherwise discard it as repetition.
+#     Good for: full-trajectory DAgger data without saving easy successes.
 #
 # Keyboard controls:
 #   Space       pause policy (AUTONOMOUS → PAUSED) or resume (PAUSED → AUTONOMOUS)
-#   Tab         start correction (PAUSED → CORRECTING) or stop+save (CORRECTING → PAUSED)
-#   ← left      cancel correction — discard frames, return to PAUSED (no save)
-#   → right     save correction immediately — same as Tab-stop (CORRECTING → PAUSED)
-#   Enter       push dataset to Hub on demand  [corrections-only mode]
+#   Tab         start correction (PAUSED → CORRECTING) or stop correction (CORRECTING → PAUSED)
+#   ← left      discard the current rollout and return to PAUSED
+#   → right     save the whole rollout if it had any intervention
+#   Enter       push dataset to Hub on demand
 #   Esc         stop session
 #
 # Setup (pre-write calibration to avoid interactive prompts):
@@ -31,7 +32,7 @@
 python scripts/goto_start_pose.py --port /dev/ttyACM1 && \
 
 # =============================================================================
-# MODE 1: CORRECTIONS-ONLY  (only human-correction windows are saved)
+# MODE 1: FULL-EPISODE ON INTERVENTION
 # =============================================================================
 python scripts/rollout_arrows.py \
     --policy.path=robot-learning-team43/molmo_b16_lora_reward_18000 \
@@ -53,7 +54,7 @@ python scripts/rollout_arrows.py \
     --teleop.id=leader \
     --teleop.calibration_dir=config/calibration/teleoperators/so_leader \
     --strategy.type=dagger \
-    --strategy.record_autonomous=false \
+    --strategy.record_autonomous=true \
     --strategy.num_episodes=20 \
     --strategy.keyboard.pause_resume=space \
     --strategy.keyboard.correction=tab \
@@ -63,12 +64,10 @@ python scripts/rollout_arrows.py \
     --dataset.repo_id=robot-learning-team43/rollout_dagger \
     --dataset.single_task="Fold the towel diagonally twice" \
     --dataset.push_to_hub=true \
-    --dataset.private=false \
-    --fps=30 \
-    --task="Fold the towel diagonally twice"
+    --dataset.private=false
 
 # =============================================================================
-# MODE 2: CONTINUOUS  (all frames recorded, tagged intervention=true/false)
+# MODE 2: LEGACY CORRECTIONS-ONLY EXAMPLE
 # =============================================================================
 # python scripts/rollout_arrows.py \
 #     --policy.path=robot-learning-team43/smoll_vla_b32_80000_reward \

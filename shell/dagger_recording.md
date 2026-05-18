@@ -25,40 +25,41 @@ AUTONOMOUS  ──[Space]──►  PAUSED  ──[Tab]──►  CORRECTING
 |-----|-----------|--------|
 | `Space` | AUTONOMOUS or PAUSED | Toggle policy on/off |
 | `Tab` | PAUSED → CORRECTING | Start recording a correction |
-| `Tab` | CORRECTING → PAUSED | **Stop and save** the correction episode |
-| `→` right arrow | CORRECTING | **Stop and save** the correction immediately (same as Tab-stop) |
-| `←` left arrow | CORRECTING | **Cancel** — discard all frames, return to PAUSED without saving |
-| `Enter` | any | Push dataset to Hub on demand *(corrections-only mode)* |
+| `Tab` | CORRECTING → PAUSED | Stop the correction and return to PAUSED |
+| `→` right arrow | not CORRECTING | Save the full rollout only if it had an intervention |
+| `←` left arrow | any | Discard the current rollout and return to PAUSED if needed |
+| `Enter` | any | Push dataset to Hub on demand |
 | `Esc` | any | Stop the session |
+
+---
+
+## Full-episode-on-intervention mode (`record_autonomous=true`)
+
+The rollout is buffered from the beginning. If you intervene at least once,
+press `→` after the rollout finishes to save the **whole episode**. If there
+was no intervention, `→` discards the rollout instead of saving repetition.
+
+```
+1. AUTONOMOUS     → whole rollout is buffered from the start
+2. Space          → PAUSED        (policy stops)
+3. Tab            → CORRECTING    (human takes over; intervention=True)
+4. Tab            → PAUSED        (correction ends; rollout continues)
+5. Space          → AUTONOMOUS    (policy resumes)
+6a. →             → save full episode if any intervention occurred
+6b. ←             → discard the current rollout
+```
+
+**Tip:** Use `←` if a rollout or correction goes bad and should not enter the
+dataset at all.
 
 ---
 
 ## Corrections-only mode (`record_autonomous=false`)
 
-Each Tab/`→` stop creates one episode. `←` throws it away cleanly.
+Only the human-correction window is recorded. This is useful for targeted
+snippets, but it does **not** preserve the full trajectory from the start.
 
-```
-1. Space          → PAUSED        (policy stops)
-2. Tab            → CORRECTING    (recording starts)
-3a. Tab or →      → PAUSED        (episode saved, counter +1)
-3b. ←             → PAUSED        (episode buffer cleared, counter unchanged)
-4. Space          → AUTONOMOUS    (policy resumes)
-```
-
-**Tip:** Use `←` whenever a correction goes wrong mid-take — you land back in
-PAUSED and can Tab-start a fresh correction without the bad frames counting
-towards your target episode total.
-
----
-
-## Continuous mode (`record_autonomous=true`)
-
-Autonomous and correction frames share one rolling episode buffer.
-
-| Key | Effect |
-|-----|--------|
-| `←` | Exits correction phase (same as Tab-stop). Frames already recorded **stay** in the buffer — partial discard is not supported in this mode. |
-| `→` | Forces an immediate episode rotation: saves the current episode (regardless of phase) and starts a fresh one. |
+Each Tab-start → Tab-stop window becomes one short episode.
 
 ---
 

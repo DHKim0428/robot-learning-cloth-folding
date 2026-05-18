@@ -342,7 +342,7 @@ class DAggerStrategyArrows(DAggerStrategy):
                     logger.info("Final in-progress episode saved")
 
     # ------------------------------------------------------------------
-    # Continuous loop  (record_autonomous=true)
+    # Full-episode DAgger loop  (record_autonomous=true)
     # ------------------------------------------------------------------
 
     def _run_continuous(self, ctx: RolloutContext) -> None:
@@ -359,8 +359,6 @@ class DAggerStrategyArrows(DAggerStrategy):
         record_stride     = max(1, cfg.interpolation_multiplier)
         task_str          = cfg.dataset.single_task if cfg.dataset else cfg.task
         play_sounds       = cfg.play_sounds
-        episode_duration_s = self._episode_duration_s
-
         engine.reset()
         interpolator.reset()
         events.reset()
@@ -369,15 +367,23 @@ class DAggerStrategyArrows(DAggerStrategy):
         engine.resume()
 
         last_action: dict[str, Any] | None = None
-        record_tick        = 0
-        start_time         = time.perf_counter()
-        episode_start      = time.perf_counter()
+        record_tick         = 0
+        start_time          = time.perf_counter()
+        recorded            = 0
+        had_intervention    = False
         episodes_since_push = 0
-        logger.info("DAgger continuous recording started (episode_duration=%.0fs)", episode_duration_s)
+        logger.info(
+            "DAgger full-episode recording started (target: %s saved episodes)",
+            self.config.num_episodes if self.config.num_episodes is not None else "unbounded",
+        )
 
         with VideoEncodingManager(dataset):
             try:
-                while not events.stop_recording.is_set() and not ctx.runtime.shutdown_event.is_set():
+                while (
+                    (self.config.num_episodes is None or recorded < self.config.num_episodes)
+                    and not events.stop_recording.is_set()
+                    and not ctx.runtime.shutdown_event.is_set()
+                ):
                     loop_start = time.perf_counter()
 
                     if cfg.duration > 0 and (time.perf_counter() - start_time) >= cfg.duration:
@@ -390,29 +396,50 @@ class DAggerStrategyArrows(DAggerStrategy):
                         self._apply_transition(old_phase, new_phase, engine, interpolator, ctx, last_action)
                         if new_phase == DAggerPhase.AUTONOMOUS:
                             last_action = None
+                        if new_phase == DAggerPhase.CORRECTING:
+                            had_intervention = True
 
-                    # --- ← cancel in continuous: just exit correction (mixed buffer) ---
+                    # --- ← discard the current rollout and start fresh ---
                     if self._cancel_requested.is_set():
                         self._cancel_requested.clear()
+                        with self._episode_lock:
+                            dataset.clear_episode_buffer()
+                        had_intervention = False
+                        record_tick = 0
                         if events.phase == DAggerPhase.CORRECTING:
-                            events.request_transition("correction")
-                            logger.info("← Cancel (continuous): exited correction, frames kept")
-                            log_say("Correction cancelled", play_sounds)
+                            if teleop is not None and _teleop_supports_feedback(teleop):
+                                with contextlib.suppress(Exception):
+                                    teleop.enable_torque()
+                            events.phase = DAggerPhase.PAUSED
+                        logger.info("← Discard: current rollout discarded")
+                        log_say("Episode discarded", play_sounds)
 
-                    # --- → save: force episode rotation ---
+                    # --- → save the whole rollout, but only if an intervention happened ---
                     if self._save_requested.is_set():
                         self._save_requested.clear()
                         if events.phase != DAggerPhase.CORRECTING:
-                            with self._episode_lock:
-                                dataset.save_episode()
-                            episodes_since_push += 1
-                            self._needs_push.set()
-                            episode_start = time.perf_counter()
-                            logger.info("→ Save: episode %d saved on demand", dataset.num_episodes)
-                            log_say(f"Episode {dataset.num_episodes} saved", play_sounds)
-                            if episodes_since_push >= self.config.upload_every_n_episodes:
-                                self._background_push(dataset, cfg)
-                                episodes_since_push = 0
+                            if had_intervention:
+                                with self._episode_lock:
+                                    dataset.save_episode()
+                                recorded += 1
+                                episodes_since_push += 1
+                                self._needs_push.set()
+                                logger.info(
+                                    "→ Save: full episode %d/%s saved",
+                                    recorded,
+                                    self.config.num_episodes if self.config.num_episodes is not None else "∞",
+                                )
+                                log_say(f"Episode {recorded} saved", play_sounds)
+                                if episodes_since_push >= self.config.upload_every_n_episodes:
+                                    self._background_push(dataset, cfg)
+                                    episodes_since_push = 0
+                            else:
+                                with self._episode_lock:
+                                    dataset.clear_episode_buffer()
+                                logger.info("→ Save ignored: no intervention occurred; rollout discarded")
+                                log_say("No intervention, episode discarded", play_sounds)
+                            had_intervention = False
+                            record_tick = 0
 
                     phase = events.phase
                     obs   = robot.get_observation()
@@ -457,19 +484,6 @@ class DAggerStrategyArrows(DAggerStrategy):
                                 })
                             record_tick += 1
 
-                    elapsed = time.perf_counter() - episode_start
-                    if elapsed >= episode_duration_s and phase != DAggerPhase.CORRECTING:
-                        with self._episode_lock:
-                            dataset.save_episode()
-                        episodes_since_push += 1
-                        self._needs_push.set()
-                        logger.info("Episode saved (total: %d, elapsed: %.1fs)", dataset.num_episodes, elapsed)
-                        log_say(f"Episode {dataset.num_episodes} saved", play_sounds)
-                        if episodes_since_push >= self.config.upload_every_n_episodes:
-                            self._background_push(dataset, cfg)
-                            episodes_since_push = 0
-                        episode_start = time.perf_counter()
-
                     dt = time.perf_counter() - loop_start
                     if (sleep_t := control_interval - dt) > 0:
                         precise_sleep(sleep_t)
@@ -480,13 +494,12 @@ class DAggerStrategyArrows(DAggerStrategy):
                         )
 
             finally:
-                logger.info("Continuous loop ended — pausing engine")
+                logger.info("Full-episode loop ended — pausing engine")
                 engine.pause()
                 with contextlib.suppress(Exception):
                     with self._episode_lock:
-                        dataset.save_episode()
-                    self._needs_push.set()
-                    logger.info("Final in-progress episode saved")
+                        dataset.clear_episode_buffer()
+                    logger.info("Final unsaved rollout discarded")
 
 
 # --------------------------------------------------------------------------
