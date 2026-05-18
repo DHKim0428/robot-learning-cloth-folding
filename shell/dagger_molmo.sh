@@ -24,7 +24,7 @@
 #   ← left      discard the current rollout, reset, and start the next rollout
 #   → right     save the whole rollout if it had any intervention, then reset
 #               and start the next rollout
-#   Enter       push dataset to Hub on demand
+#   Enter       push dataset to Hub on demand (episodes also push immediately on save)
 #   Esc         stop session
 #
 # Setup (pre-write calibration to avoid interactive prompts):
@@ -62,7 +62,7 @@ python scripts/rollout_arrows.py \
     --strategy.keyboard.upload=enter \
     --inference.type=rtc \
     --inference.rtc.execution_horizon=10 \
-    --dataset.repo_id=robot-learning-team43/rollout_dagger \
+    --dataset.repo_id=robot-learning-team43/rollout_molmo_dagger_full \
     --dataset.single_task="Fold the towel diagonally twice" \
     --dataset.push_to_hub=true \
     --dataset.private=false

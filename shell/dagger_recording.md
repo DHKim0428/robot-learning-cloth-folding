@@ -28,7 +28,7 @@ AUTONOMOUS  ──[Space]──►  PAUSED  ──[Tab]──►  CORRECTING
 | `Tab` | CORRECTING → PAUSED | Stop the correction and return to PAUSED |
 | `→` right arrow | not CORRECTING | Save the full rollout only if it had an intervention, reset, and start the next rollout |
 | `←` left arrow | any | Discard the current rollout, reset, and start the next rollout |
-| `Enter` | any | Push dataset to Hub on demand |
+| `Enter` | any | Push dataset to Hub on demand; accepted episodes are also pushed immediately on save |
 | `Esc` | any | Stop the session |
 
 ---

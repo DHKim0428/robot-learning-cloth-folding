@@ -450,7 +450,6 @@ class DAggerStrategyArrows(DAggerStrategy):
                                 with self._episode_lock:
                                     dataset.save_episode()
                                 recorded += 1
-                                episodes_since_push += 1
                                 self._needs_push.set()
                                 logger.info(
                                     "→ Save: full episode %d/%s saved",
@@ -458,9 +457,7 @@ class DAggerStrategyArrows(DAggerStrategy):
                                     self.config.num_episodes if self.config.num_episodes is not None else "∞",
                                 )
                                 log_say(f"Episode {recorded} saved", play_sounds)
-                                if episodes_since_push >= self.config.upload_every_n_episodes:
-                                    self._background_push(dataset, cfg)
-                                    episodes_since_push = 0
+                                self._background_push(dataset, cfg)
                             else:
                                 with self._episode_lock:
                                     dataset.clear_episode_buffer()
