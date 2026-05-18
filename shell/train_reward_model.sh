@@ -20,4 +20,4 @@ export HF_TOKEN='xxx'
 # Run only this
 sudo apt-get install -y ffmpeg
 
-lerobot-train   --dataset.repo_id=robot-learning-team43/so101_teleop_private_filtered     --dataset.revision=main  --reward_model.type=sarm   --reward_model.annotation_mode=single_stage   --reward_model.image_key=observation.images.front   --reward_model.push_to_hub=false   --output_dir=outputs/train/sarm_single   --batch_size=32   --steps=5000   --wandb.enable=true   --wandb.project=folding_43
+lerobot-train   --dataset.repo_id=robot-learning-team43/so101_filtered_dohyung_HQ_molmoact     --dataset.revision=main  --reward_model.type=sarm   --reward_model.annotation_mode=single_stage   --reward_model.image_key=observation.images.front   --reward_model.push_to_hub=false   --output_dir=outputs/train/sarm_single   --batch_size=32   --steps=5000   --wandb.enable=true   --wandb.project=folding_43
