@@ -25,6 +25,8 @@ from typing import Any
 
 import numpy as np
 
+from script_utils import move_robot_to_pose
+
 # --------------------------------------------------------------------------
 # lerobot-rollout entry-point imports (verbatim from lerobot_rollout.py)
 # --------------------------------------------------------------------------
@@ -78,6 +80,16 @@ from lerobot.utils.pedal import start_pedal_listener
 from lerobot.utils.robot_utils import precise_sleep
 
 logger = logging.getLogger(__name__)
+
+# Same start pose used by scripts/goto_start_pose.py.
+DATASET_START_POSE = {
+    "shoulder_pan.pos": 7.1209,
+    "shoulder_lift.pos": -72.6154,
+    "elbow_flex.pos": 29.5385,
+    "wrist_flex.pos": 88.5714,
+    "wrist_roll.pos": -89.7143,
+    "gripper.pos": 1.1612,
+}
 
 # X11 VK codes for arrow keys — stable across layouts and pynput versions.
 _XK_LEFT  = 65361   # XK_Left
@@ -375,6 +387,25 @@ class DAggerStrategyArrows(DAggerStrategy):
             self.config.num_episodes if self.config.num_episodes is not None else "unbounded",
         )
 
+        def reset_for_next_rollout() -> None:
+            """Return to the dataset start pose and immediately resume autonomous control."""
+            nonlocal last_action, record_tick
+            engine.pause()
+            move_robot_to_pose(
+                robot=robot,
+                target_pose=DATASET_START_POSE,
+                duration_s=3.0,
+                fps=50,
+            )
+            engine.reset()
+            interpolator.reset()
+            last_action = None
+            record_tick = 0
+            events.phase = DAggerPhase.AUTONOMOUS
+            engine.resume()
+            logger.info("Reset to start pose; next autonomous rollout started")
+            log_say("Next episode started", play_sounds)
+
         with VideoEncodingManager(dataset):
             try:
                 while (
@@ -403,14 +434,13 @@ class DAggerStrategyArrows(DAggerStrategy):
                         with self._episode_lock:
                             dataset.clear_episode_buffer()
                         had_intervention = False
-                        record_tick = 0
                         if events.phase == DAggerPhase.CORRECTING:
                             if teleop is not None and _teleop_supports_feedback(teleop):
                                 with contextlib.suppress(Exception):
                                     teleop.enable_torque()
-                            events.phase = DAggerPhase.PAUSED
                         logger.info("← Discard: current rollout discarded")
                         log_say("Episode discarded", play_sounds)
+                        reset_for_next_rollout()
 
                     # --- → save the whole rollout, but only if an intervention happened ---
                     if self._save_requested.is_set():
@@ -437,7 +467,7 @@ class DAggerStrategyArrows(DAggerStrategy):
                                 logger.info("→ Save ignored: no intervention occurred; rollout discarded")
                                 log_say("No intervention, episode discarded", play_sounds)
                             had_intervention = False
-                            record_tick = 0
+                            reset_for_next_rollout()
 
                     phase = events.phase
                     obs   = robot.get_observation()

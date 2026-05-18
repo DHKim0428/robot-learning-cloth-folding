@@ -26,8 +26,8 @@ AUTONOMOUS  ──[Space]──►  PAUSED  ──[Tab]──►  CORRECTING
 | `Space` | AUTONOMOUS or PAUSED | Toggle policy on/off |
 | `Tab` | PAUSED → CORRECTING | Start recording a correction |
 | `Tab` | CORRECTING → PAUSED | Stop the correction and return to PAUSED |
-| `→` right arrow | not CORRECTING | Save the full rollout only if it had an intervention |
-| `←` left arrow | any | Discard the current rollout and return to PAUSED if needed |
+| `→` right arrow | not CORRECTING | Save the full rollout only if it had an intervention, reset, and start the next rollout |
+| `←` left arrow | any | Discard the current rollout, reset, and start the next rollout |
 | `Enter` | any | Push dataset to Hub on demand |
 | `Esc` | any | Stop the session |
 
@@ -45,8 +45,8 @@ was no intervention, `→` discards the rollout instead of saving repetition.
 3. Tab            → CORRECTING    (human takes over; intervention=True)
 4. Tab            → PAUSED        (correction ends; rollout continues)
 5. Space          → AUTONOMOUS    (policy resumes)
-6a. →             → save full episode if any intervention occurred
-6b. ←             → discard the current rollout
+6a. →             → save full episode if any intervention occurred, reset, start next rollout
+6b. ←             → discard the current rollout, reset, start next rollout
 ```
 
 **Tip:** Use `←` if a rollout or correction goes bad and should not enter the

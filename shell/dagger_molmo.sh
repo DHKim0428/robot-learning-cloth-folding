@@ -21,8 +21,9 @@
 # Keyboard controls:
 #   Space       pause policy (AUTONOMOUS → PAUSED) or resume (PAUSED → AUTONOMOUS)
 #   Tab         start correction (PAUSED → CORRECTING) or stop correction (CORRECTING → PAUSED)
-#   ← left      discard the current rollout and return to PAUSED
-#   → right     save the whole rollout if it had any intervention
+#   ← left      discard the current rollout, reset, and start the next rollout
+#   → right     save the whole rollout if it had any intervention, then reset
+#               and start the next rollout
 #   Enter       push dataset to Hub on demand
 #   Esc         stop session
 #
