@@ -35,7 +35,7 @@ python scripts/goto_start_pose.py --port /dev/ttyACM1 && \
 # MODE 1: FULL-EPISODE ON INTERVENTION
 # =============================================================================
 python scripts/rollout_arrows.py \
-    --policy.path=robot-learning-team43/molmo_b16_lora_reward_18000 \
+    --policy.path=robot-learning-team43/molmo_b16_lora_reward_10000 \
     --robot.type=so101_follower \
     --robot.port=/dev/ttyACM1 \
     --robot.id=follower \

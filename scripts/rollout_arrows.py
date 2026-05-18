@@ -14,8 +14,6 @@ Usage:
         --policy.path=... --strategy.type=dagger ... (same flags as before)
 """
 
-from __future__ import annotations
-
 import contextlib
 import logging
 import os
