@@ -27,7 +27,7 @@ Current milestone checklist:
 - [ ] test policy in HG and collect some data there too 
 
 ## Setup
-
+### Data collection
 ```bash
 # Install conda (aarch64 / Jetson)
 mkdir -p ~/miniconda3
@@ -52,8 +52,20 @@ pip install -e "../lerobot[feetech,training,viz,datasets,diffusion]" \
     --extra-index-url https://download.pytorch.org/whl/cu128
 pip install pynput
 ```
-
 > The `lerobot` source directory must sit **next to** this repo (i.e. `../lerobot`).
+
+### Molmo
+```bash
+# Switch branch and update submodules
+git fetch origin
+git switch -t origin/joaquin-molmo
+git submodule update --init --recursive
+
+# Setup env
+curl -LsSf https://astral.sh/uv/install.sh | sh
+uv sync
+source .venv/bin/activate
+```
 
 ## SO-101 quickstart
 For day-to-day robot setup and data collection, see **[docs/so101_config.md](docs/so101_config.md)**.
