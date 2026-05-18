@@ -37,13 +37,13 @@ press `→` after the rollout finishes to save the **whole episode**. If there
 was no intervention, `→` discards the rollout instead of saving repetition.
 
 ```
-1. PAUSED         → robot waits at the start pose
-2. Space          → AUTONOMOUS    (policy starts)
-3. Tab            → CORRECTING    (human takes over; intervention=True)
-4. Tab            → PAUSED        (correction ends)
-5. Space          → AUTONOMOUS    (policy resumes)
-6a. →             → save full episode if any intervention occurred, reset, wait at start pose
-6b. ←             → discard the current rollout, reset, wait at start pose
+1. First launch    → AUTONOMOUS starts automatically
+2. Tab             → CORRECTING   (human takes over; intervention=True)
+3. Tab             → PAUSED       (correction ends)
+4. Space           → AUTONOMOUS   (policy resumes)
+5a. →              → save full episode if any intervention occurred, reset, wait at start pose
+5b. ←              → discard the current rollout, reset, wait at start pose
+6. Space           → start the next rollout after reset
 ```
 
 **Tip:** Use `←` if a rollout or correction goes bad and should not enter the

@@ -19,7 +19,7 @@
 #     Good for: full-trajectory DAgger data without saving easy successes.
 #
 # Keyboard controls:
-#   Space       start/resume policy from PAUSED
+#   Space       start/resume policy from PAUSED (used after reset between episodes)
 #   Tab         take over directly (AUTONOMOUS → CORRECTING) or stop correction
 #               (CORRECTING → PAUSED)
 #   ← left      discard the current rollout, reset, and wait at start pose

@@ -244,8 +244,7 @@ class DAggerStrategyArrows(DAggerStrategy):
         self._cancel_requested.clear()
         self._save_requested.clear()
         self._direct_correction_requested.clear()
-        events.phase = DAggerPhase.PAUSED
-        engine.pause()
+        engine.resume()
 
         last_action: dict[str, Any] | None = None
         start_time  = time.perf_counter()
@@ -400,7 +399,7 @@ class DAggerStrategyArrows(DAggerStrategy):
             "DAgger full-episode recording started (target: %s saved episodes)",
             self.config.num_episodes if self.config.num_episodes is not None else "unbounded",
         )
-        logger.info("Waiting at start pose; press Space to start the first rollout")
+        logger.info("First autonomous rollout started")
 
         def reset_for_next_rollout() -> None:
             """Return to the dataset start pose and wait for Space to start."""
