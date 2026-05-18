@@ -118,6 +118,7 @@ def _init_keyboard_arrows(
     events: DAggerEvents,
     cancel_ev: Event,
     save_ev: Event,
+    direct_correction_ev: Event,
     cfg: DAggerKeyboardConfig,
 ):
     """Like _init_dagger_keyboard but also handles ← cancel and → save."""
@@ -171,7 +172,10 @@ def _init_keyboard_arrows(
                 logger.info("→ Save key pressed")
                 save_ev.set()
                 return
-            if resolved in key_to_event:
+            if resolved == cfg.correction and events.phase == DAggerPhase.AUTONOMOUS:
+                logger.info("Direct correction key pressed")
+                direct_correction_ev.set()
+            elif resolved in key_to_event:
                 events.request_transition(key_to_event[resolved])
             if resolved == cfg.upload:
                 events.upload_requested.set()
@@ -198,6 +202,7 @@ class DAggerStrategyArrows(DAggerStrategy):
         super().__init__(config)
         self._cancel_requested = Event()
         self._save_requested = Event()
+        self._direct_correction_requested = Event()
 
     def setup(self, ctx: RolloutContext) -> None:
         super().setup(ctx)
@@ -210,6 +215,7 @@ class DAggerStrategyArrows(DAggerStrategy):
                 self._events,
                 self._cancel_requested,
                 self._save_requested,
+                self._direct_correction_requested,
                 self.config.keyboard,
             )
 
@@ -237,7 +243,9 @@ class DAggerStrategyArrows(DAggerStrategy):
         events.reset()
         self._cancel_requested.clear()
         self._save_requested.clear()
-        engine.resume()
+        self._direct_correction_requested.clear()
+        events.phase = DAggerPhase.PAUSED
+        engine.pause()
 
         last_action: dict[str, Any] | None = None
         start_time  = time.perf_counter()
@@ -260,6 +268,10 @@ class DAggerStrategyArrows(DAggerStrategy):
 
                     # --- phase transitions (Tab / Space) ---
                     transition = events.consume_transition()
+                    if self._direct_correction_requested.is_set():
+                        self._direct_correction_requested.clear()
+                        transition = (DAggerPhase.AUTONOMOUS, DAggerPhase.CORRECTING)
+                        events.phase = DAggerPhase.CORRECTING
                     if transition is not None:
                         old_phase, new_phase = transition
                         self._apply_transition(old_phase, new_phase, engine, interpolator, ctx, last_action)
@@ -374,7 +386,9 @@ class DAggerStrategyArrows(DAggerStrategy):
         events.reset()
         self._cancel_requested.clear()
         self._save_requested.clear()
-        engine.resume()
+        self._direct_correction_requested.clear()
+        events.phase = DAggerPhase.PAUSED
+        engine.pause()
 
         last_action: dict[str, Any] | None = None
         record_tick         = 0
@@ -386,9 +400,10 @@ class DAggerStrategyArrows(DAggerStrategy):
             "DAgger full-episode recording started (target: %s saved episodes)",
             self.config.num_episodes if self.config.num_episodes is not None else "unbounded",
         )
+        logger.info("Waiting at start pose; press Space to start the first rollout")
 
         def reset_for_next_rollout() -> None:
-            """Return to the dataset start pose and immediately resume autonomous control."""
+            """Return to the dataset start pose and wait for Space to start."""
             nonlocal last_action, record_tick
             engine.pause()
             move_robot_to_pose(
@@ -401,10 +416,9 @@ class DAggerStrategyArrows(DAggerStrategy):
             interpolator.reset()
             last_action = None
             record_tick = 0
-            events.phase = DAggerPhase.AUTONOMOUS
-            engine.resume()
-            logger.info("Reset to start pose; next autonomous rollout started")
-            log_say("Next episode started", play_sounds)
+            events.phase = DAggerPhase.PAUSED
+            logger.info("Reset to start pose; waiting for Space to start next rollout")
+            log_say("Ready for next episode", play_sounds)
 
         with VideoEncodingManager(dataset):
             try:
@@ -419,7 +433,29 @@ class DAggerStrategyArrows(DAggerStrategy):
                         logger.info("Duration limit reached (%.0fs)", cfg.duration)
                         break
 
-                    transition = events.consume_transition()
+                    if self._direct_correction_requested.is_set():
+                        self._direct_correction_requested.clear()
+                        self._apply_transition(
+                            DAggerPhase.AUTONOMOUS,
+                            DAggerPhase.PAUSED,
+                            engine,
+                            interpolator,
+                            ctx,
+                            last_action,
+                        )
+                        self._apply_transition(
+                            DAggerPhase.PAUSED,
+                            DAggerPhase.CORRECTING,
+                            engine,
+                            interpolator,
+                            ctx,
+                            last_action,
+                        )
+                        events.phase = DAggerPhase.CORRECTING
+                        had_intervention = True
+                        transition = None
+                    else:
+                        transition = events.consume_transition()
                     if transition is not None:
                         old_phase, new_phase = transition
                         self._apply_transition(old_phase, new_phase, engine, interpolator, ctx, last_action)
@@ -427,6 +463,12 @@ class DAggerStrategyArrows(DAggerStrategy):
                             last_action = None
                         if new_phase == DAggerPhase.CORRECTING:
                             had_intervention = True
+
+                    # --- on-demand upload (Enter) ---
+                    if events.upload_requested.is_set():
+                        events.upload_requested.clear()
+                        logger.info("Upload requested by user")
+                        self._background_push(dataset, cfg)
 
                     # --- ← discard the current rollout and start fresh ---
                     if self._cancel_requested.is_set():

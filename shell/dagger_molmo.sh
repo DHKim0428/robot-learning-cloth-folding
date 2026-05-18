@@ -19,11 +19,12 @@
 #     Good for: full-trajectory DAgger data without saving easy successes.
 #
 # Keyboard controls:
-#   Space       pause policy (AUTONOMOUS → PAUSED) or resume (PAUSED → AUTONOMOUS)
-#   Tab         start correction (PAUSED → CORRECTING) or stop correction (CORRECTING → PAUSED)
-#   ← left      discard the current rollout, reset, and start the next rollout
+#   Space       start/resume policy from PAUSED
+#   Tab         take over directly (AUTONOMOUS → CORRECTING) or stop correction
+#               (CORRECTING → PAUSED)
+#   ← left      discard the current rollout, reset, and wait at start pose
 #   → right     save the whole rollout if it had any intervention, then reset
-#               and start the next rollout
+#               and wait at start pose
 #   Enter       push dataset to Hub on demand (episodes also push immediately on save)
 #   Esc         stop session
 #
