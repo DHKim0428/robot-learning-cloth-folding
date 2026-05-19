@@ -52,13 +52,11 @@ lerobot-train \
     --policy.normalize_gripper=true \
     --policy.enable_knowledge_insulation=false \
     --policy.push_to_hub=false \
-    --sample_weighting.type=rabc \
-    --sample_weighting.kappa=0.06 \
     --wandb.enable=true \
-    --wandb.entity=folding_43 \
+    --wandb.entity=joaquin-gajardo \
     --wandb.project=folding_43 \
     --job_name=molmoact2_cloth_rabc \
-    --output_dir=outputs/molmoact2_cloth_rabc \
+    --output_dir=outputs/molmoact2_cloth_uniform \
     --steps=20000 \
     --batch_size=16 \
     --num_workers=4 \
@@ -66,3 +64,5 @@ lerobot-train \
     --eval_freq=-1 \
     --save_checkpoint=true \
     --save_freq=2000
+    #--sample_weighting.type=rabc \
+    #--sample_weighting.kappa=0.06 \
