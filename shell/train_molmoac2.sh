@@ -2,36 +2,42 @@
 # https://github.com/allenai/lerobot/blob/molmoact2-policy/docs/source/molmoact2.mdx
 ################################
 
-export WANDB_API_KEY='xx'
-export HF_TOKEN='xx'
+# export WANDB_API_KEY='xx'
+# export HF_TOKEN='xx'
 
 ################################
 # Preparing DATASET (run once)
 ################################
 # copy dataset
-python -c "from huggingface_hub import HfApi; HfApi().duplicate_repo(from_id='robot-learning-team43/so101_filtered_dohyung_HQ', to_id='robot-learning-team43/so101_filtered_dohyung_HQ_molmoact', repo_type='dataset', private=False)"
+#python -c "from huggingface_hub import HfApi; HfApi().duplicate_repo(from_id='robot-learning-team43/so101_filtered_dohyung_HQ', to_id='robot-learning-team43/so101_filtered_dohyung_HQ_molmoact', repo_type='dataset', private=False)"
 
 # copy version tag from source (duplicate_repo doesn't copy tags)
-python -c "from huggingface_hub import HfApi; HfApi().create_tag('robot-learning-team43/so101_filtered_dohyung_HQ_molmoact', tag='v3.0', repo_type='dataset')"
+#python -c "from huggingface_hub import HfApi; HfApi().create_tag('robot-learning-team43/so101_filtered_dohyung_HQ_molmoact', tag='v3.0', repo_type='dataset')"
+
+# Create new dataset with more tasks for bonus
+#lerobot-edit-dataset --new_repo_id robot-learning-team43/so101_HQ_merged_diverse_pos --operation.type merge --operation.repo_ids "['robot-learning-team43/so101_filtered_dohyung_HQ', 'robot-learning-team43/so101_general']" --push_to_hub true
 
 # Rename task to Fold the towel diagonally twice
-python3 -c "import pandas as pd; from huggingface_hub import HfApi, hf_hub_download; f = hf_hub_download('robot-learning-team43/so101_filtered_dohyung_HQ_molmoact', 'meta/tasks.parquet', repo_type='dataset'); df = pd.read_parquet(f); df.index = df.index.str.replace('SO101 teleoperation task', 'Fold the towel diagonally twice'); df.to_parquet('/tmp/tasks.parquet'); HfApi().upload_file(path_or_fileobj='/tmp/tasks.parquet', path_in_repo='meta/tasks.parquet', repo_id='robot-learning-team43/so101_filtered_dohyung_HQ_molmoact', repo_type='dataset'); print('Done:', df)"
+#python3 -c "import pandas as pd; from huggingface_hub import HfApi, hf_hub_download; f = hf_hub_download('robot-learning-team43/so101_filtered_dohyung_HQ_molmoact', 'meta/tasks.parquet', repo_type='dataset'); df = pd.read_parquet(f); df.index = df.index.str.replace('SO101 teleoperation task', 'Fold the towel diagonally twice'); df.to_parquet('/tmp/tasks.parquet'); HfApi().upload_file(path_or_fileobj='/tmp/tasks.parquet', path_in_repo='meta/tasks.parquet', repo_id='robot-learning-team43/so101_filtered_dohyung_HQ_molmoact', repo_type='dataset'); print('Done:', df)"
+#python3 -c "import pandas as pd; from huggingface_hub import HfApi, hf_hub_download; f = hf_hub_download('robot-learning-team43/so101_HQ_merged_diverse_pos', 'meta/tasks.parquet', repo_type='dataset'); df = pd.read_parquet(f); df.index = df.index.str.replace('SO101 teleoperation task', 'Fold the towel diagonally twice'); df.to_parquet('/tmp/tasks.parquet'); HfApi().upload_file(path_or_fileobj='/tmp/tasks.parquet', path_in_repo='meta/tasks.parquet', repo_id='robot-learning-team43/so101_HQ_merged_diverse_pos', repo_type='dataset'); print('Done:', df)"
 
 # add quantile stats required by MolmoAct2 (run once)
-python molmoact2/src/lerobot/scripts/augment_dataset_quantile_stats.py --repo-id=robot-learning-team43/so101_filtered_dohyung_HQ_molmoact
+#python molmoact2/src/lerobot/scripts/augment_dataset_quantile_stats.py --repo-id=robot-learning-team43/so101_filtered_dohyung_HQ_molmoact
+#python molmoact2/src/lerobot/scripts/augment_dataset_quantile_stats.py --repo-id=robot-learning-team43/so101_HQ_merged_diverse_pos --overwrite
 
-# compute RABC weights (requires a trained SARM reward model — run train_reward_model.sh first)
-python scripts/compute_rabc_weights.py \
-    --dataset-repo-id=robot-learning-team43/so101_filtered_dohyung_HQ_molmoact \
-    --reward-model-path=outputs/train/sarm_single \
-    --push-to-hub
+# # compute RABC weights (requires a trained SARM reward model — run train_reward_model.sh first)
+# python scripts/compute_rabc_weights.py \
+#     --dataset-repo-id=robot-learning-team43/so101_filtered_dohyung_HQ_molmoact \
+#     --reward-model-path=outputs/train/sarm_single \
+#     --push-to-hub
 
 ################################
 # Train
 ################################
+dataset=${1:-so101_filtered_dohyung_HQ_molmoact} # or e.g. so101_HQ_merged_diverse_pos
 
 lerobot-train \
-    --dataset.repo_id=robot-learning-team43/so101_filtered_dohyung_HQ_molmoact \
+    --dataset.repo_id=robot-learning-team43/${dataset} \
     --dataset.video_backend=pyav \
     --dataset.image_transforms.enable=true \
     --dataset.revision=main \
@@ -55,7 +61,7 @@ lerobot-train \
     --wandb.enable=true \
     --wandb.entity=joaquin-gajardo \
     --wandb.project=folding_43 \
-    --job_name=molmoact2_cloth_rabc \
+    --job_name=molmoact2_cloth \
     --output_dir=outputs/molmoact2_cloth_uniform \
     --steps=20000 \
     --batch_size=16 \
