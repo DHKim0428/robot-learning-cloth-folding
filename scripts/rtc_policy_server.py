@@ -71,6 +71,19 @@ def _normalize_prev_actions_length(prev_actions: Any, target_steps: int) -> Any:
     return padded
 
 
+
+
+def _receive_stream_bytes(request_iterator, log_prefix: str) -> bytes:
+    """Receive a chunked LeRobot transport stream without version-specific kwargs."""
+    chunks: list[bytes] = []
+    for item in request_iterator:
+        chunks.append(item.data)
+        if item.transfer_state == services_pb2.TransferState.TRANSFER_END:
+            return b"".join(chunks)
+    if chunks:
+        return b"".join(chunks)
+    raise RuntimeError(f"{log_prefix} received an empty byte stream")
+
 def _resolve_action_key_order(
     policy_action_names: list[str] | None,
     dataset_action_names: list[str],
@@ -201,12 +214,7 @@ class RTCPolicyServer:
         return services_pb2.Empty()
 
     def SendObservations(self, request_iterator, context):  # noqa: N802
-        received_bytes = receive_bytes_in_chunks(
-            request_iterator,
-            None,
-            self.shutdown_event,
-            log_prefix="[RTC SERVER] Observation",
-        )
+        received_bytes = _receive_stream_bytes(request_iterator, "[RTC SERVER] Observation")
         payload = pickle.loads(received_bytes)  # nosec: trusted local robotics process
         if isinstance(payload, dict):
             payload = TimedObservationPayload(**payload)
@@ -316,14 +324,18 @@ class RTCPolicyServer:
         if prev_actions is not None:
             prev_actions = _normalize_prev_actions_length(prev_actions, self.rtc_config.execution_horizon)
 
-        with torch.inference_mode():
+        # Do not wrap RTC inference in torch.no_grad()/inference_mode():
+        # LeRobot RTC computes prefix guidance with torch.autograd.grad inside
+        # RTCProcessor.denoise_step. The policy method itself may be decorated
+        # with no_grad(), so we explicitly re-enable grad around the call.
+        with torch.enable_grad():
             actions = self.policy.predict_action_chunk(
                 preprocessed,
                 inference_delay=delay,
                 prev_chunk_left_over=prev_actions,
             )
-            original = actions.squeeze(0).clone()
-            processed = self.postprocessor(actions).squeeze(0)
+        original = actions.squeeze(0).detach().clone()
+        processed = self.postprocessor(actions.detach()).squeeze(0)
 
         new_latency = time.perf_counter() - current_time
         real_delay = math.ceil(new_latency / time_per_step)

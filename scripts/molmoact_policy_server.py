@@ -86,6 +86,19 @@ def _load_runtime_imports() -> None:
     init_logging = _init_logging
 
 
+
+
+def _receive_stream_bytes(request_iterator, log_prefix: str) -> bytes:
+    """Receive a chunked LeRobot transport stream without version-specific kwargs."""
+    chunks: list[bytes] = []
+    for item in request_iterator:
+        chunks.append(item.data)
+        if item.transfer_state == services_pb2.TransferState.TRANSFER_END:
+            return b"".join(chunks)
+    if chunks:
+        return b"".join(chunks)
+    raise RuntimeError(f"{log_prefix} received an empty byte stream")
+
 def _resolve_action_key_order(policy_action_names: list[str] | None, dataset_action_names: list[str]) -> list[str]:
     if not policy_action_names:
         return dataset_action_names
@@ -186,12 +199,7 @@ class MolmoActPolicyServer:
         return services_pb2.Empty()
 
     def SendObservations(self, request_iterator, context):  # noqa: N802
-        received_bytes = receive_bytes_in_chunks(
-            request_iterator,
-            None,
-            self.shutdown_event,
-            log_prefix="[MOLMOACT SERVER] Observation",
-        )
+        received_bytes = _receive_stream_bytes(request_iterator, "[MOLMOACT SERVER] Observation")
         payload = pickle.loads(received_bytes)  # nosec: trusted local robotics process
         if not isinstance(payload, dict):
             raise TypeError(f"Expected observation payload dict, got {type(payload)}")
