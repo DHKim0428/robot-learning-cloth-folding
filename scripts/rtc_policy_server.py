@@ -51,10 +51,11 @@ class TimedObservationPayload:
 
 @dataclass
 class ActionPayload:
-    action: Any | None
-    ordered_action_keys: list[str]
-    queue_size: int
-    server_timestep: int
+    action: Any | None = None
+    actions: list[Any] | None = None
+    ordered_action_keys: list[str] | None = None
+    queue_size: int = 0
+    server_timestep: int = 0
 
 
 def _normalize_prev_actions_length(prev_actions: Any, target_steps: int) -> Any:
@@ -226,12 +227,17 @@ class RTCPolicyServer:
 
     def GetActions(self, request, context):  # noqa: N802
         if not self.ready_event.is_set():
-            payload = ActionPayload(None, [], 0, self.server_timestep)
+            payload = ActionPayload(actions=[], ordered_action_keys=[], queue_size=0, server_timestep=self.server_timestep)
             return services_pb2.Actions(data=pickle.dumps(payload))
 
-        action = self.action_queue.get()
+        actions = []
+        for _ in range(max(self.args.max_actions_per_response, 1)):
+            action = self.action_queue.get()
+            if action is None:
+                break
+            actions.append(action)
         payload = ActionPayload(
-            action=action,
+            actions=actions,
             ordered_action_keys=self.ordered_action_keys,
             queue_size=self.action_queue.qsize(),
             server_timestep=self.server_timestep,
@@ -370,6 +376,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-guidance-weight", type=float, default=10.0)
     parser.add_argument("--prefix-attention-schedule", default="linear")
     parser.add_argument("--queue-threshold", type=int, default=30)
+    parser.add_argument("--max-actions-per-response", type=int, default=10)
     parser.add_argument("--rtc-debug", action="store_true")
     return parser.parse_args()
 

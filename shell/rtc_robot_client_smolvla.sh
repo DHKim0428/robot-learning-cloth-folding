@@ -15,6 +15,7 @@ CAMERA_INDEX="${CAMERA_INDEX:-0}"
 CAMERA_WIDTH="${CAMERA_WIDTH:-640}"
 CAMERA_HEIGHT="${CAMERA_HEIGHT:-480}"
 FPS="${FPS:-30}"
+REFILL_THRESHOLD="${REFILL_THRESHOLD:-5}"
 TASK="SO101 teleoperation task"
 
 python scripts/goto_start_pose2.py --port "$ROBOT_PORT"
@@ -31,4 +32,5 @@ exec python scripts/rtc_robot_client.py \
     --camera-height "$CAMERA_HEIGHT" \
     --fps "$FPS" \
     --task "$TASK" \
+    --refill-threshold "$REFILL_THRESHOLD" \
     "$@"

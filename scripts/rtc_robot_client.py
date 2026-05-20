@@ -6,13 +6,17 @@ from __future__ import annotations
 import argparse
 import logging
 import pickle  # nosec: local trusted robotics process payloads
+import threading
 import time
+from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 
 LOGGER = logging.getLogger("rtc_robot_client")
+_REFILL_IDLE_SLEEP_S = 0.01
+_REFILL_ERROR_SLEEP_S = 0.5
 
 
 @dataclass
@@ -35,10 +39,11 @@ class TimedObservationPayload:
 
 @dataclass
 class ActionPayload:
-    action: Any | None
-    ordered_action_keys: list[str]
-    queue_size: int
-    server_timestep: int
+    action: Any | None = None
+    actions: list[Any] | None = None
+    ordered_action_keys: list[str] | None = None
+    queue_size: int = 0
+    server_timestep: int = 0
 
 
 def _coerce_camera_index(value: str) -> int | str:
@@ -147,6 +152,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--camera-fps", type=int, default=None)
     parser.add_argument("--fps", type=float, default=30.0)
     parser.add_argument("--task", default="SO101 teleoperation task")
+    parser.add_argument("--refill-threshold", type=int, default=5)
     parser.add_argument("--duration", type=float, default=0.0, help="Seconds to run; 0 means infinite.")
     parser.add_argument("--return-duration", type=float, default=3.0)
     parser.add_argument("--return-fps", type=int, default=50)
@@ -194,6 +200,97 @@ def _load_runtime_imports() -> None:
     init_logging = _init_logging
 
 
+
+class RTCRefillWorker:
+    """Background network/refill worker so the robot control loop stays non-blocking."""
+
+    def __init__(self, stub, args: argparse.Namespace):
+        self.stub = stub
+        self.args = args
+        self.shutdown = threading.Event()
+        self.latest_obs_lock = threading.Lock()
+        self.latest_obs: TimedObservationPayload | None = None
+        self.queue_lock = threading.Lock()
+        self.action_queue: deque[Any] = deque()
+        self.ordered_keys: list[str] = []
+        self.thread = threading.Thread(target=self._loop, daemon=True, name="RTCActionRefill")
+
+    def start(self) -> None:
+        self.thread.start()
+
+    def stop(self) -> None:
+        self.shutdown.set()
+        if self.thread.is_alive():
+            self.thread.join(timeout=3.0)
+
+    def set_latest_observation(self, payload: TimedObservationPayload) -> None:
+        with self.latest_obs_lock:
+            self.latest_obs = payload
+
+    def pop_action(self) -> tuple[Any, list[str]] | None:
+        with self.queue_lock:
+            if not self.action_queue:
+                return None
+            return self.action_queue.popleft(), list(self.ordered_keys)
+
+    def qsize(self) -> int:
+        with self.queue_lock:
+            return len(self.action_queue)
+
+    def _loop(self) -> None:
+        while not self.shutdown.is_set():
+            if self.qsize() > self.args.refill_threshold:
+                time.sleep(_REFILL_IDLE_SLEEP_S)
+                continue
+
+            with self.latest_obs_lock:
+                obs_payload = self.latest_obs
+            if obs_payload is None:
+                time.sleep(_REFILL_IDLE_SLEEP_S)
+                continue
+
+            try:
+                _send_observation(self.stub, obs_payload)
+                response = self.stub.GetActions(services_pb2.Empty())
+                payload = pickle.loads(response.data)  # nosec: trusted local robotics process
+
+                if isinstance(payload, ActionPayload):
+                    actions = payload.actions if payload.actions is not None else []
+                    if payload.action is not None:
+                        actions = [payload.action, *actions]
+                    ordered_keys = payload.ordered_action_keys or []
+                    queue_size = payload.queue_size
+                else:
+                    actions = payload.get("actions", [])
+                    single_action = payload.get("action")
+                    if single_action is not None:
+                        actions = [single_action, *actions]
+                    ordered_keys = payload.get("ordered_action_keys", [])
+                    queue_size = payload.get("queue_size", 0)
+
+                if not actions:
+                    time.sleep(_REFILL_IDLE_SLEEP_S)
+                    continue
+
+                with self.queue_lock:
+                    self.ordered_keys = list(ordered_keys)
+                    self.action_queue.extend(actions)
+                    local_size = len(self.action_queue)
+
+                LOGGER.debug(
+                    "Received RTC actions: len=%d local_queue=%d server_queue=%s",
+                    len(actions),
+                    local_size,
+                    queue_size,
+                )
+            except grpc.RpcError as exc:
+                LOGGER.error("gRPC refill error: %s", exc)
+                time.sleep(_REFILL_ERROR_SLEEP_S)
+            except Exception as exc:  # noqa: BLE001
+                LOGGER.error("RTC refill error: %s", exc)
+                time.sleep(_REFILL_ERROR_SLEEP_S)
+
+
 def main() -> None:
     args = parse_args()
     _load_runtime_imports()
@@ -202,6 +299,7 @@ def main() -> None:
 
     robot = make_robot_from_config(_build_robot_config(args))
     channel = None
+    refill_worker: RTCRefillWorker | None = None
     initial_pose: dict[str, float] = {}
     robot_action_processor = make_default_processors()[1]
 
@@ -221,6 +319,9 @@ def main() -> None:
         stub.SendPolicyInstructions(services_pb2.PolicySetup(data=pickle.dumps(setup)))
         LOGGER.info("Connected to RTC policy server at %s", args.server_address)
 
+        refill_worker = RTCRefillWorker(stub, args)
+        refill_worker.start()
+
         start_time = time.perf_counter()
         timestep = 0
         control_dt = 1.0 / args.fps
@@ -231,24 +332,19 @@ def main() -> None:
                 break
 
             obs = robot.get_observation()
-            _send_observation(
-                stub,
+            refill_worker.set_latest_observation(
                 TimedObservationPayload(
                     timestamp=time.time(),
                     timestep=timestep,
                     observation=obs,
-                ),
+                )
             )
 
-            response = stub.GetActions(services_pb2.Empty())
-            payload = pickle.loads(response.data)  # nosec: trusted local robotics process
-            action = payload.action if isinstance(payload, ActionPayload) else payload.get("action")
-            ordered_keys = (
-                payload.ordered_action_keys
-                if isinstance(payload, ActionPayload)
-                else payload.get("ordered_action_keys", fallback_action_keys)
-            )
-            if action is not None:
+            next_item = refill_worker.pop_action()
+            if next_item is not None:
+                action, ordered_keys = next_item
+                if not ordered_keys:
+                    ordered_keys = fallback_action_keys
                 if len(action) != len(ordered_keys):
                     raise ValueError(f"Action dim {len(action)} does not match action keys {len(ordered_keys)}")
                 action_dict = {key: action[i].item() for i, key in enumerate(ordered_keys)}
@@ -264,6 +360,8 @@ def main() -> None:
     except KeyboardInterrupt:
         LOGGER.info("Interrupted by user")
     finally:
+        if refill_worker is not None:
+            refill_worker.stop()
         if robot.is_connected:
             if not args.no_return_to_initial_position:
                 try:

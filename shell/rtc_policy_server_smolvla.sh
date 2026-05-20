@@ -13,6 +13,7 @@ DEVICE="${DEVICE:-cuda}"
 FPS="${FPS:-30}"
 EXECUTION_HORIZON="${EXECUTION_HORIZON:-10}"
 MAX_GUIDANCE_WEIGHT="${MAX_GUIDANCE_WEIGHT:-10.0}"
+MAX_ACTIONS_PER_RESPONSE="${MAX_ACTIONS_PER_RESPONSE:-10}"
 
 exec python scripts/rtc_policy_server.py \
     --host "$HOST" \
@@ -22,4 +23,5 @@ exec python scripts/rtc_policy_server.py \
     --fps "$FPS" \
     --execution-horizon "$EXECUTION_HORIZON" \
     --max-guidance-weight "$MAX_GUIDANCE_WEIGHT" \
+    --max-actions-per-response "$MAX_ACTIONS_PER_RESPONSE" \
     "$@"
