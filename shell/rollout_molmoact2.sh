@@ -1,6 +1,7 @@
+model_path=${1:-robot-learning-team43/molmo_b16_lora_reward_10000} # local path
 python scripts/goto_start_pose.py --port /dev/ttyACM1 && \
 lerobot-rollout \
-    --policy.path=robot-learning-team43/molmo_b16_lora_reward_10000 \
+    --policy.path=${model_path} \
     --robot.type=so101_follower \
     --robot.port=/dev/ttyACM1 \
     --robot.id=follower \
@@ -13,4 +14,5 @@ lerobot-rollout \
     --policy.chunk_size=30 \
     --policy.n_action_steps=30 \
     --policy.num_inference_steps=4 \
-    --policy.enable_inference_cuda_graph=true
+    --policy.enable_inference_cuda_graph=true \
+    --interpolation_multiplier=3
