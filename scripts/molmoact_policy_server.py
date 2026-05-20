@@ -116,6 +116,7 @@ class MolmoActPolicyServer:
         self.postprocessor = None
         self.ordered_action_keys: list[str] = []
         self.request_index = 0
+        self.shutdown_event = threading.Event()
 
         self.policy_cfg = PreTrainedConfig.from_pretrained(args.policy_path)
         self.policy_cfg.device = args.device
@@ -187,8 +188,9 @@ class MolmoActPolicyServer:
     def SendObservations(self, request_iterator, context):  # noqa: N802
         received_bytes = receive_bytes_in_chunks(
             request_iterator,
+            None,
+            self.shutdown_event,
             log_prefix="[MOLMOACT SERVER] Observation",
-            silent=True,
         )
         payload = pickle.loads(received_bytes)  # nosec: trusted local robotics process
         if not isinstance(payload, dict):
