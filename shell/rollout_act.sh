@@ -1,29 +1,32 @@
 #!/usr/bin/env bash
-# Run a trained ACT policy on the SO-101 follower arm.
+# Run the ACT cloth-folding policy on the SO-101 follower arm.
 #
 # Usage:
-#   bash shell/rollout_act.sh ACT_model/outputs/<run>/policy_act.pt [--dry-run] [extra args]
+#   bash shell/rollout_act.sh [--duration 60] [--task "fold the cloth"] [extra args]
 #
 # Reminders:
-#   - run `newgrp dialout` once per terminal so the USB ports are accessible
-#   - run `conda activate lerobot` first
+#   - run `newgrp dialout` once per terminal so USB ports are accessible
+#   - HF_TOKEN must be set to pull the private model from the Hub
 
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 
-if [[ $# -lt 1 ]]; then
-    echo "usage: $0 <checkpoint.pt> [extra args]" >&2
-    exit 2
-fi
+POLICY_REPO="robot-learning-team43/act_cloth_folding_05_11"
 
-CHECKPOINT="$1"
-shift
-
-if [[ "${CONDA_DEFAULT_ENV:-}" != "lerobot" ]]; then
-    echo "[warn] CONDA_DEFAULT_ENV='${CONDA_DEFAULT_ENV:-}' (expected 'lerobot')"
-fi
+# Download model from Hub (cached after first run)
+echo "[init] fetching model from Hub: $POLICY_REPO"
+CHECKPOINT=$(python -c "
+from huggingface_hub import snapshot_download
+import pathlib
+path = pathlib.Path(snapshot_download('$POLICY_REPO'))
+candidates = list(path.glob('*.pt')) or list(path.glob('model.safetensors'))
+if not candidates:
+    raise FileNotFoundError(f'No .pt or model.safetensors found in {path}')
+print(candidates[0])
+")
+echo "[init] checkpoint: $CHECKPOINT"
 
 if ! groups | tr ' ' '\n' | grep -qx dialout; then
     echo "[warn] you may need to run \`newgrp dialout\` first to access the USB serial ports."
