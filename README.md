@@ -44,10 +44,34 @@ bash shell/train_molmoact2.sh
 ```
 ## Inference
 ### MolmoAct2
-Run the following script to use the trained model [`robot-learning-team43/molmoact2_HQ_extended_020000`](https://huggingface.co/robot-learning-team43/molmoact2_HQ_extended_020000). Adjust port and camera index as needed.
+If running locally on a machine with GPU (about 13GB VRAM required) just run the following script to use the trained model [`robot-learning-team43/molmoact2_HQ_extended_020000`](https://huggingface.co/robot-learning-team43/molmoact2_HQ_extended_020000) (15 GB storage required). Adjust port and camera index as needed.
 ```bash
 bash shell/rollout_molmoact2.sh
 ```
+
+<details>
+<summary><strong>Remote inference (workstation)</strong></summary>
+
+For async inference, the policy runs on a remote GPU machine while the robot client runs locally.
+
+**1. On the remote GPU machine** — start the policy server:
+```bash
+python -m lerobot.async_inference.policy_server --host=0.0.0.0 --port=8080
+```
+
+**2. On the local machine (robot side)** — run the client, replacing `<SERVER_IP>` with the remote machine's IP:
+```bash
+shell\async_client_molmoact2.bat   # Windows
+# or
+bash shell/async_client_molmoact2.sh   # Linux/macOS
+```
+</details>
+
+<details>
+<summary><strong>Remote inference (over Brev)</strong></summary>
+
+</details>
+
 
 ## Repository structure
 - `config/` — local configuration templates and port files
