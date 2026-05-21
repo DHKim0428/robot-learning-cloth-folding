@@ -32,6 +32,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--fps", type=float, default=30.0)
     parser.add_argument("--task", default="Fold the towel diagonally twice")
     parser.add_argument("--refill-threshold", type=int, default=5)
+    parser.add_argument(
+        "--n-action-steps",
+        type=int,
+        default=0,
+        help="Max actions to enqueue from each server chunk; 0 means use the full returned chunk.",
+    )
     parser.add_argument("--duration", type=float, default=0.0, help="Seconds to run; 0 means infinite.")
     parser.add_argument("--return-duration", type=float, default=3.0)
     parser.add_argument("--return-fps", type=int, default=50)
@@ -231,11 +237,18 @@ class ChunkRefillWorker:
                     LOGGER.warning("Server returned no chunk: %s", error)
                     time.sleep(_REFILL_ERROR_SLEEP_S)
                     continue
+                original_len = len(actions)
+                if self.args.n_action_steps > 0:
+                    actions = actions[: self.args.n_action_steps]
+                if not actions:
+                    time.sleep(_REFILL_IDLE_SLEEP_S)
+                    continue
                 with self.queue_lock:
                     self.action_queue.extend(actions)
                 LOGGER.info(
-                    "Received MolmoAct chunk: len=%d queue=%d latency=%.1fms",
+                    "Received MolmoAct chunk: queued=%d/%d queue=%d latency=%.1fms",
                     len(actions),
+                    original_len,
                     self.qsize(),
                     float(payload.get("latency_ms", 0.0)),
                 )
