@@ -15,4 +15,4 @@ lerobot-rollout \
     --policy.n_action_steps=30 \
     --policy.num_inference_steps=4 \
     --policy.enable_inference_cuda_graph=true \
-    --interpolation_multiplier=3
+    #--interpolation_multiplier=3
