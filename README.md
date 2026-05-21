@@ -1,22 +1,29 @@
 # Team 43 — ETH Robot Learning Cloth Folding
 
-Repository for Team 43's ETH Robot Learning project on cloth folding.
-Below are the setup and usage instructions for the codebase, including training and inference for the SmolVLA and MolmoAct2 policy used in the demo and bonus task, respectively.
+Submission repository for Team 43's cloth-folding project.
 
-**Hugging Face models and datasets:** https://huggingface.co/robot-learning-team43
+Hugging Face: https://huggingface.co/robot-learning-team43
 
-## Code and environment setup
+## Policies
+
+- Basic eval: `robot-learning-team43/smolvla_HQ`
+- Bonus eval: `robot-learning-team43/molmo_b16_lora_reward_10000`
+
+## Setup
+
+Clone with submodules:
+
 ```bash
 git clone https://github.com/DHKim0428/robot-learning-cloth-folding.git --recursive
 cd robot-learning-cloth-folding
 ```
 
-### SmolVLA - Policy during demo
+### Basic eval environment
+
 ```bash
-# Install conda first then:
 conda create -y -n lerobot python=3.12
 conda activate lerobot
-conda install ffmpeg -c conda-forge
+conda install -y ffmpeg -c conda-forge
 pip install torch==2.7.1 torchvision==0.22.1 torchaudio==2.7.1 \
     --index-url https://download.pytorch.org/whl/cu128
 pip install -e "lerobot[feetech,training,viz,dataset,diffusion,async,smolvla]" \
@@ -24,62 +31,70 @@ pip install -e "lerobot[feetech,training,viz,dataset,diffusion,async,smolvla]" \
 pip install pynput
 ```
 
-### MolmoAct2 - Policy for bonus task
-```bash
-## Setup submodule
-git fetch origin
-git submodule sync
-git submodule update --init
+### Bonus eval environment
 
-## Setup env (install uv then)
-#curl -LsSf https://astral.sh/uv/install.sh | sh
+```bash
+git submodule sync
+git submodule update --init --recursive
 uv sync
 source .venv/bin/activate
 ```
-## Training
+
+## Run evaluation locally
+
+These scripts assume the policy and robot run on the same machine with a CUDA GPU.
+Override `ROBOT_PORT`, `CAMERA_INDEX`, or `POLICY_PATH` if needed.
+
+```bash
+bash run_eval_basic.sh
+bash run_eval_bonus.sh
+```
+
+Defaults:
+
+- Robot port: `/dev/ttyACM1`
+- Camera index: `0`
+- FPS: `30`
+
+MolmoAct2 needs a larger GPU; we used a GPU server when local VRAM was insufficient.
+
+## Remote GPU / Brev inference
+
+Run policy server on the GPU machine and robot client on the robot machine.
+
+### SmolVLA
+
+GPU machine:
+
+```bash
+HOST=0.0.0.0 PORT=8080 bash shell/rtc_policy_server_smolvla.sh
+```
+
+Robot machine:
+
+```bash
+SERVER_ADDRESS=<GPU_IP>:8080 bash shell/rtc_robot_client_smolvla.sh
+```
+
 ### MolmoAct2
-The following script was used to train [`robot-learning-team43/molmoact2_HQ_extended_020000`](https://huggingface.co/robot-learning-team43/molmoact2_HQ_extended_020000) using a H100 GPU in Nvidia Brev. Both the checkpoint and dataset ([`robot-learning-team43/so101_HQ_merged_diverse_pos`](robot-learning-team43/so101_HQ_merged_diverse_pos)) are openly available on Hugging Face.
+
+GPU machine:
+
 ```bash
-bash shell/train_molmoact2.sh
-```
-## Inference
-### MolmoAct2
-If running locally on a machine with GPU (about 13GB VRAM required) just run the following script to use the trained model [`robot-learning-team43/molmoact2_HQ_extended_020000`](https://huggingface.co/robot-learning-team43/molmoact2_HQ_extended_020000) (15 GB storage required). Adjust port and camera index as needed.
-```bash
-bash shell/rollout_molmoact2.sh
+HOST=0.0.0.0 PORT=8080 bash shell/molmoact_policy_server.sh
 ```
 
-<details>
-<summary><strong>Remote inference (workstation)</strong></summary>
+Robot machine:
 
-For async inference, the policy runs on a remote GPU machine while the robot client runs locally.
-
-**1. On the remote GPU machine** — start the policy server:
 ```bash
-python -m lerobot.async_inference.policy_server --host=0.0.0.0 --port=8080
+SERVER_ADDRESS=<GPU_IP>:8080 bash shell/molmoact_robot_client.sh
 ```
 
-**2. On the local machine (robot side)** — run the client, replacing `<SERVER_IP>` with the remote machine's IP:
+## Training scripts
+
+Training is not required for evaluation. The submitted checkpoints are on Hugging Face.
+
 ```bash
-shell\async_client_molmoact2.bat   # Windows
-# or
-bash shell/async_client_molmoact2.sh   # Linux/macOS
+bash shell/train_smolvla_HQ.sh
+bash shell/train_molmoac2.sh
 ```
-</details>
-
-<details>
-<summary><strong>Remote inference (over Brev)</strong></summary>
-
-</details>
-
-
-## Repository structure
-- `config/` — local configuration templates and port files
-- `data/lerobot/` — local LeRobot-format recordings (gitignored)
-- `docs/` — project notes, setup notes, and decisions
-- `papers/` — optional paper notes and references
-- `scripts/` — python scripts for robot setup, teleoperation, and data collection
-- `shell/` — shell scripts for various tasks like training and rollout
-
-## SO-101 data collection
-For day-to-day robot setup and data collection, see **[docs/so101_config.md](docs/so101_config.md)**.
