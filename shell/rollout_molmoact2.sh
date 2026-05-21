@@ -1,4 +1,4 @@
-model_path=${1:-robot-learning-team43/molmo_b16_lora_reward_10000} # local path
+model_path=${1:-robot-learning-team43/molmoact2_HQ_extended_020000} # local path
 python scripts/goto_start_pose.py --port /dev/ttyACM1 && \
 lerobot-rollout \
     --policy.path=${model_path} \

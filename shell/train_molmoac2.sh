@@ -34,7 +34,7 @@
 ################################
 # Train
 ################################
-dataset=${1:-so101_filtered_dohyung_HQ_molmoact} # or e.g. so101_HQ_merged_diverse_pos
+dataset=${1:-so101_HQ_merged_diverse_pos} # or e.g. so101_HQ_merged_diverse_pos so101_filtered_dohyung_HQ_molmoact}
 
 lerobot-train \
     --dataset.repo_id=robot-learning-team43/${dataset} \
@@ -59,7 +59,6 @@ lerobot-train \
     --policy.enable_knowledge_insulation=false \
     --policy.push_to_hub=false \
     --wandb.enable=true \
-    --wandb.entity=joaquin-gajardo \
     --wandb.project=folding_43 \
     --job_name=molmoact2_cloth \
     --output_dir=outputs/molmoact2_cloth_uniform \
