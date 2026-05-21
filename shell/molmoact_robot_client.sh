@@ -16,9 +16,10 @@ CAMERA_WIDTH="${CAMERA_WIDTH:-640}"
 CAMERA_HEIGHT="${CAMERA_HEIGHT:-480}"
 FPS="${FPS:-30}"
 REFILL_THRESHOLD="${REFILL_THRESHOLD:-5}"
+CLIENT_N_ACTION_STEPS="${CLIENT_N_ACTION_STEPS:-0}"
 TASK="Fold the towel diagonally twice"
 
-python scripts/goto_start_pose.py --port "$ROBOT_PORT"
+python scripts/goto_start_pose2.py --port "$ROBOT_PORT"
 
 exec python scripts/molmoact_robot_client.py \
     --server-address "$SERVER_ADDRESS" \
@@ -33,4 +34,5 @@ exec python scripts/molmoact_robot_client.py \
     --fps "$FPS" \
     --task "$TASK" \
     --refill-threshold "$REFILL_THRESHOLD" \
+    --n-action-steps "$CLIENT_N_ACTION_STEPS" \
     "$@"
