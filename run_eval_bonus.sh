@@ -18,7 +18,7 @@ if [ "$#" -gt 0 ]; then
     POLICY_PATH="$1"
     shift
 else
-    POLICY_PATH="${POLICY_PATH:-checkpoints/molmoact2_general}"
+    POLICY_PATH="${POLICY_PATH:-robot-learning-team43/molmoact2_HQ_extended_020000}"
 fi
 TASK="${TASK:-Fold the towel diagonally twice}"
 
