@@ -8,7 +8,13 @@ cd "$REPO_ROOT"
 
 HOST="${HOST:-127.0.0.1}"
 PORT="${PORT:-8080}"
-POLICY_PATH="${POLICY_PATH:-robot-learning-team43/smolvla_HQ}"
+if [ -z "${POLICY_PATH:-}" ]; then
+    if [ -d "checkpoints/smolvla_HQ" ]; then
+        POLICY_PATH="checkpoints/smolvla_HQ"
+    else
+        POLICY_PATH="robot-learning-team43/smolvla_HQ"
+    fi
+fi
 DEVICE="${DEVICE:-cuda}"
 FPS="${FPS:-30}"
 EXECUTION_HORIZON="${EXECUTION_HORIZON:-10}"

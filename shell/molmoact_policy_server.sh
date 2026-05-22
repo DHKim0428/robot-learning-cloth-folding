@@ -8,7 +8,18 @@ cd "$REPO_ROOT"
 
 HOST="${HOST:-127.0.0.1}"
 PORT="${PORT:-8080}"
-POLICY_PATH="${POLICY_PATH:-robot-learning-team43/molmo_b16_lora_reward_10000}"
+if [ "$#" -gt 0 ]; then
+    POLICY_PATH="$1"
+    shift
+elif [ -z "${POLICY_PATH:-}" ]; then
+    if [ -d "checkpoints/molmoact2_HQ_extended_020000" ]; then
+        POLICY_PATH="checkpoints/molmoact2_HQ_extended_020000"
+    elif [ -d "checkpoints/molmoact2_general" ]; then
+        POLICY_PATH="checkpoints/molmoact2_general"
+    else
+        POLICY_PATH="robot-learning-team43/molmoact2_HQ_extended_020000"
+    fi
+fi
 DEVICE="${DEVICE:-cuda}"
 INFERENCE_ACTION_MODE="${INFERENCE_ACTION_MODE:-continuous}"
 MODEL_DTYPE="${MODEL_DTYPE:-bfloat16}"
