@@ -148,7 +148,7 @@ conda activate lerobot
 bash shell/train_smolvla_HQ.sh
 ```
 
-MolmoAct2 training uses `uv run` after `uv sync`:
+MolmoAct2 training uses the Python virtual environment in `.venv` created with `uv sync`:
 
 ```bash
 source .venv/bin/activate
