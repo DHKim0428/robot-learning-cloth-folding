@@ -54,10 +54,11 @@ python scripts/calibrate_motor.py
 bash run_eval_basic.sh
 ```
 
-Bonus eval, after `uv sync`:
+Bonus eval, after `uv sync`, activate the virtual environment in `.venv`:
 
 ```bash
-uv run bash run_eval_bonus.sh
+source .venv/bin/activate
+bash run_eval_bonus.sh
 ```
 
 If bonus eval is the first run after setup, calibrate once with `uv run python scripts/calibrate_motor.py` before running the script.
@@ -115,13 +116,14 @@ ROBOT_PORT=/dev/ttyACM0 SERVER_ADDRESS=<GPU_IP>:8080 bash shell/rtc_robot_client
 
 ### MolmoAct2
 
-Use `uv run` for MolmoAct2 after `uv sync`.
+For MolmoAct2, activate `.venv` after `uv sync`.
 
 #### Option A: custom Team 43 server/client
 
 GPU machine or Brev instance:
 
 ```bash
+source .venv/bin/activate
 HOST=0.0.0.0 PORT=8080 uv run bash shell/molmoact_policy_server.sh
 ```
 
@@ -166,8 +168,9 @@ conda activate lerobot
 bash shell/train_smolvla_HQ.sh
 ```
 
-MolmoAct2 training uses `uv run` after `uv sync`:
+MolmoAct2 training uses the Python virtual environment in `.venv` created with `uv sync`:
 
 ```bash
-uv run bash shell/train_molmoac2.sh
+source .venv/bin/activate
+bash shell/train_molmoac2.sh
 ```
