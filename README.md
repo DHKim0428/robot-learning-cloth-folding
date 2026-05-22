@@ -117,13 +117,15 @@ ROBOT_PORT=/dev/ttyACM0 SERVER_ADDRESS=<GPU_IP>:8080 bash shell/rtc_robot_client
 
 Use `uv run` for MolmoAct2 after `uv sync`.
 
-On the GPU machine or Brev instance:
+#### Option A: custom Team 43 server/client
+
+GPU machine or Brev instance:
 
 ```bash
 HOST=0.0.0.0 PORT=8080 uv run bash shell/molmoact_policy_server.sh
 ```
 
-On the robot machine:
+Robot machine:
 
 ```bash
 SERVER_ADDRESS=<GPU_IP>:8080 uv run bash shell/molmoact_robot_client.sh
@@ -133,6 +135,24 @@ Override the robot port if needed:
 
 ```bash
 ROBOT_PORT=/dev/ttyACM0 SERVER_ADDRESS=<GPU_IP>:8080 uv run bash shell/molmoact_robot_client.sh
+```
+
+#### Option B: LeRobot async inference
+
+GPU machine or Brev instance:
+
+```bash
+uv run python -m lerobot.async_inference.policy_server --host=0.0.0.0 --port=8080
+```
+
+Robot machine:
+
+```bash
+# Linux/macOS; edit SERVER_ADDRESS/ROBOT_PORT in the script if needed.
+uv run bash shell/async_client_molmoact2.sh
+
+# Windows
+shell\async_client_molmoact2.bat
 ```
 
 ## Training scripts
