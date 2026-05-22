@@ -17,8 +17,14 @@ FPS="${FPS:-30}"
 if [ "$#" -gt 0 ]; then
     POLICY_PATH="$1"
     shift
-else
-    POLICY_PATH="${POLICY_PATH:-checkpoints/molmoact2_general}"
+elif [ -z "${POLICY_PATH:-}" ]; then
+    if [ -d "checkpoints/molmoact2_HQ_extended_020000" ]; then
+        POLICY_PATH="checkpoints/molmoact2_HQ_extended_020000"
+    elif [ -d "checkpoints/molmoact2_general" ]; then
+        POLICY_PATH="checkpoints/molmoact2_general"
+    else
+        POLICY_PATH="robot-learning-team43/molmoact2_HQ_extended_020000"
+    fi
 fi
 TASK="${TASK:-Fold the towel diagonally twice}"
 
