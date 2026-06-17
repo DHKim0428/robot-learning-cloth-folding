@@ -14,6 +14,7 @@ from script_utils import (
     leader_config_kwargs,
     load_final_pose,
     load_ports,
+    lock_camera_exposure,
     move_robot_to_pose,
 )
 
@@ -119,6 +120,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--camera-index", default=0)
     parser.add_argument("--camera-width", type=int, default=640)
     parser.add_argument("--camera-height", type=int, default=480)
+    parser.add_argument(
+        "--camera-device",
+        default="/dev/video2",
+        help="V4L2 device node to lock exposure on after the camera opens.",
+    )
+    parser.add_argument(
+        "--exposure",
+        type=int,
+        default=30,
+        help="Manual exposure_time_absolute set after the camera opens (auto-exposure disabled).",
+    )
     parser.add_argument(
         "--home-pose-path",
         type=Path,
@@ -512,6 +524,8 @@ def main() -> None:
 
     robot.connect()
     teleop.connect()
+    if args.camera:
+        lock_camera_exposure(args.camera_device, args.exposure)
     final_pose = load_final_pose(args.final_pose_path) if args.final_pose_path.exists() else None
 
     try:

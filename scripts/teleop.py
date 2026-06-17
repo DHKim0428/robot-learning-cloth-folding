@@ -1,7 +1,24 @@
 import argparse
 from pathlib import Path
 
-from script_utils import DEFAULT_PORTS_PATH, follower_config_kwargs, leader_config_kwargs, load_ports
+from script_utils import (
+    DEFAULT_PORTS_PATH,
+    follower_config_kwargs,
+    leader_config_kwargs,
+    load_ports,
+    lock_camera_exposure,
+)
+
+
+def show_camera_frame(window_name: str, frame) -> bool:
+    import cv2
+
+    if frame is None:
+        return True
+
+    display_frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+    cv2.imshow(window_name, display_frame)
+    return (cv2.waitKey(1) & 0xFF) != ord("q")
 
 
 def build_follower_config(args: argparse.Namespace, follower_port: str):
@@ -40,16 +57,24 @@ def run_teleop(args: argparse.Namespace) -> None:
 
     robot.connect()
     teleop_device.connect()
+    if args.camera:
+        lock_camera_exposure(args.camera_device, args.exposure)
 
     try:
         while True:
             if args.camera:
-                robot.get_observation()
+                observation = robot.get_observation()
+                if not show_camera_frame(args.camera_name, observation.get(args.camera_name)):
+                    break
             action = teleop_device.get_action()
             robot.send_action(action)
     finally:
         teleop_device.disconnect()
         robot.disconnect()
+        if args.camera:
+            import cv2
+
+            cv2.destroyAllWindows()
 
 
 def parse_args() -> argparse.Namespace:
@@ -66,10 +91,21 @@ def parse_args() -> argparse.Namespace:
         help="Enable the follower camera and fetch observations during teleoperation.",
     )
     parser.add_argument("--camera-name", default="front")
-    parser.add_argument("--camera-index", default=0)
-    parser.add_argument("--camera-width", type=int, default=1920)
-    parser.add_argument("--camera-height", type=int, default=1080)
+    parser.add_argument("--camera-index", default=2)
+    parser.add_argument("--camera-width", type=int, default=640)
+    parser.add_argument("--camera-height", type=int, default=480)
     parser.add_argument("--camera-fps", type=int, default=30)
+    parser.add_argument(
+        "--camera-device",
+        default="/dev/video2",
+        help="V4L2 device node to lock exposure on after the camera opens.",
+    )
+    parser.add_argument(
+        "--exposure",
+        type=int,
+        default=30,
+        help="Manual exposure_time_absolute set after the camera opens (auto-exposure disabled).",
+    )
     return parser.parse_args()
 
 

@@ -44,6 +44,35 @@ def leader_config_kwargs(port: str) -> dict[str, object]:
     }
 
 
+def lock_camera_exposure(device: str, exposure: int) -> None:
+    """Disable auto-exposure and pin a fixed exposure on the V4L2 camera.
+
+    Must run after the camera is opened: OpenCV resets these controls when it
+    opens the device, so setting them earlier has no effect.
+    """
+    import shutil
+    import subprocess
+
+    if shutil.which("v4l2-ctl") is None:
+        print(f"v4l2-ctl not found; skipping exposure lock on {device}.")
+        return
+
+    try:
+        subprocess.run(
+            [
+                "v4l2-ctl",
+                "-d",
+                device,
+                "--set-ctrl=auto_exposure=1",
+                f"--set-ctrl=exposure_time_absolute={exposure}",
+            ],
+            check=True,
+        )
+        print(f"Locked {device}: auto_exposure=manual, exposure_time_absolute={exposure}")
+    except subprocess.CalledProcessError as e:
+        print(f"Failed to lock exposure on {device}: {e}")
+
+
 def load_home_pose(home_pose_path: Path) -> dict[str, float]:
     with home_pose_path.open("r", encoding="utf-8") as f:
         pose = json.load(f)
