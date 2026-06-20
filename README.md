@@ -31,6 +31,24 @@ pip install -e "lerobot[feetech,training,viz,dataset,diffusion,async,smolvla]" \
 pip install pynput
 ```
 
+#### Video decoding (torchcodec / NPP)
+
+Training on a dataset with video observations (e.g. the two-cam cloth-folding dataset) decodes frames through `torchcodec`. On a fresh GPU box this fails with `libnppicc.so.12: cannot open shared object file` or `undefined symbol: aoti_torch_create_device_guard`. Two pins fix it:
+
+```bash
+# NVIDIA NPP libs torchcodec needs (the torch cu128 wheel does not pull these)
+pip install nvidia-npp-cu12
+# torchcodec built for torch 2.7 (newer torchcodec is ABI-incompatible with torch 2.7.1)
+pip install "torchcodec==0.4.0" --index-url https://download.pytorch.org/whl/cu128 \
+    --extra-index-url https://pypi.org/simple
+```
+
+The NPP `.so` lands under `site-packages/nvidia/npp/lib`. That dir must be on `LD_LIBRARY_PATH` at runtime so the loader finds `libnppicc.so.12`. This is environment-specific (it is not baked into the launcher), so export it before training, e.g.:
+
+```bash
+export LD_LIBRARY_PATH="$CONDA_PREFIX/lib/python3.12/site-packages/nvidia/npp/lib:${LD_LIBRARY_PATH:-}"
+```
+
 ### Bonus eval environment
 
 ```bash
