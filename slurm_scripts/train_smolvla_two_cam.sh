@@ -6,8 +6,11 @@
 #SBATCH --cpus-per-task=4
 #SBATCH --mem-per-cpu=6G
 #SBATCH --time=120:00:00
-#SBATCH --output=/cluster/work/igp_psr/spanwar/Robot_Learning/logs/smolvla_two_cam_%j.out
-#SBATCH --error=/cluster/work/igp_psr/spanwar/Robot_Learning/logs/smolvla_two_cam_%j.err
+#SBATCH --output=logs/smolvla_two_cam_%j.out
+#SBATCH --error=logs/smolvla_two_cam_%j.err
+
+REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+mkdir -p "$REPO_DIR/logs"
 
 module load stack/2025-06 gcc/12.2.0
 module load ffmpeg/7.0.2
@@ -20,7 +23,7 @@ export HF_LEROBOT_HOME=/cluster/scratch/spanwar/cache/huggingface
 
 source /cluster/work/igp_psr/spanwar/envs/lerobot/bin/activate
 
-cd /cluster/work/igp_psr/spanwar/Robot_Learning/robot-learning-cloth-folding
+cd "$REPO_DIR"
 
 nvidia-smi
 
