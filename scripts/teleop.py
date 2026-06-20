@@ -34,7 +34,7 @@ def build_follower_config(args: argparse.Namespace, follower_port: str):
 
     config_kwargs = follower_config_kwargs(follower_port)
     if not args.camera:
-        return SO101FollowerConfig(**config_kwargs)
+        return SO101FollowerConfig(**config_kwargs) # pyright: ignore[reportArgumentType]
 
     from lerobot.cameras.opencv.configuration_opencv import OpenCVCameraConfig
 
@@ -49,8 +49,8 @@ def build_follower_config(args: argparse.Namespace, follower_port: str):
         for name, index in zip(args.camera_name, camera_indexes(args))
     }
     return SO101FollowerConfig(
-        **config_kwargs,
-        cameras=camera_config,
+        **config_kwargs, # pyright: ignore[reportArgumentType]
+        cameras=camera_config, # pyright: ignore[reportArgumentType]
     )
 
 
@@ -60,7 +60,7 @@ def run_teleop(args: argparse.Namespace) -> None:
 
     ports = load_ports(args.config)
     robot_config = build_follower_config(args, ports["follower"])
-    teleop_config = SO101LeaderConfig(**leader_config_kwargs(ports["leader"]))
+    teleop_config = SO101LeaderConfig(**leader_config_kwargs(ports["leader"])) # pyright: ignore[reportArgumentType]
 
     robot = SO101Follower(robot_config)
     teleop_device = SO101Leader(teleop_config)
