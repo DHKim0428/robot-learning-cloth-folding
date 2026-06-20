@@ -6,11 +6,11 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$REPO_ROOT"
 
-ROBOT_PORT="${ROBOT_PORT:-/dev/ttyACM1}"
+ROBOT_PORT="${ROBOT_PORT:-/dev/ttyACM0}"
 ROBOT_ID="${ROBOT_ID:-follower}"
 CALIBRATION_DIR="${CALIBRATION_DIR:-config/calibration/robots/so_follower}"
 CAMERA_NAME="${CAMERA_NAME:-camera1}"
-CAMERA_INDEX="${CAMERA_INDEX:-0}"
+CAMERA_INDEX="${CAMERA_INDEX:-4}"
 CAMERA_WIDTH="${CAMERA_WIDTH:-640}"
 CAMERA_HEIGHT="${CAMERA_HEIGHT:-480}"
 FPS="${FPS:-30}"
