@@ -19,7 +19,15 @@ from script_utils import (
 )
 
 
-DEFAULT_DATASET_REPO_ID = "local/so101_teleop"
+DEFAULT_DATASET_REPO_ID = "klrshak/cloth_folding_two_cam"
+
+
+def camera_indexes(args: argparse.Namespace) -> list[int]:
+    if len(args.camera_name) != len(args.camera_index):
+        raise ValueError("--camera-name and --camera-index must have the same number of values.")
+    if len(set(args.camera_name)) != len(args.camera_name):
+        raise ValueError("Camera names must be unique.")
+    return args.camera_index
 
 
 def build_robot_config(args: argparse.Namespace, follower_port: str):
@@ -33,12 +41,14 @@ def build_robot_config(args: argparse.Namespace, follower_port: str):
     from lerobot.cameras.opencv.configuration_opencv import OpenCVCameraConfig
 
     camera_config = {
-        args.camera_name: OpenCVCameraConfig(
-            index_or_path=args.camera_index,
+        name: OpenCVCameraConfig(
+            index_or_path=index,
             width=args.camera_width,
             height=args.camera_height,
             fps=args.fps,
+            fourcc="MJPG",
         )
+        for name, index in zip(args.camera_name, camera_indexes(args))
     }
     return SO101FollowerConfig(
         **config_kwargs,
@@ -58,7 +68,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--fps", type=int, default=30)
     parser.add_argument("--episode-time-sec", type=int, default=60)
     parser.add_argument("--reset-time-sec", type=int, default=10)
-    parser.add_argument("--task", default="SO101 teleoperation task")
+    parser.add_argument("--task", default="Fold the cloth twice diagonally")
     parser.add_argument(
         "--dataset-repo-id",
         default=DEFAULT_DATASET_REPO_ID,
@@ -116,15 +126,10 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Enable the follower camera and record observations with images.",
     )
-    parser.add_argument("--camera-name", default="front")
-    parser.add_argument("--camera-index", default=0)
+    parser.add_argument("--camera-name", nargs="+", default=["top", "wrist"], help="Camera name(s), e.g. front wrist.")
+    parser.add_argument("--camera-index", nargs="+", type=int, default=[2, 4], help="Camera index(es), e.g. 2 4.")
     parser.add_argument("--camera-width", type=int, default=640)
     parser.add_argument("--camera-height", type=int, default=480)
-    parser.add_argument(
-        "--camera-device",
-        default="/dev/video2",
-        help="V4L2 device node to lock exposure on after the camera opens.",
-    )
     parser.add_argument(
         "--exposure",
         type=int,
@@ -525,7 +530,8 @@ def main() -> None:
     robot.connect()
     teleop.connect()
     if args.camera:
-        lock_camera_exposure(args.camera_device, args.exposure)
+        for index in camera_indexes(args):
+            lock_camera_exposure(f"/dev/video{index}", args.exposure)
     final_pose = load_final_pose(args.final_pose_path) if args.final_pose_path.exists() else None
 
     try:
