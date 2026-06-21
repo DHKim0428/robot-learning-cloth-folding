@@ -37,7 +37,7 @@ exec lerobot-rollout \
     --robot.port="$ROBOT_PORT" \
     --robot.id="$ROBOT_ID" \
     --robot.calibration_dir="$CALIBRATION_DIR" \
-    --robot.cameras="{\"$TOP_CAMERA_NAME\": {\"type\": \"opencv\", \"index_or_path\": $TOP_CAMERA_INDEX, \"width\": $CAMERA_WIDTH, \"height\": $CAMERA_HEIGHT, \"fps\": $FPS}, \"$WRIST_CAMERA_NAME\": {\"type\": \"opencv\", \"index_or_path\": $WRIST_CAMERA_INDEX, \"width\": $CAMERA_WIDTH, \"height\": $CAMERA_HEIGHT, \"fps\": $FPS}}" \
+    --robot.cameras="{\"$TOP_CAMERA_NAME\": {\"type\": \"opencv\", \"index_or_path\": $TOP_CAMERA_INDEX, \"width\": $CAMERA_WIDTH, \"height\": $CAMERA_HEIGHT, \"fps\": $FPS, \"fourcc\": \"MJPG\"}, \"$WRIST_CAMERA_NAME\": {\"type\": \"opencv\", \"index_or_path\": $WRIST_CAMERA_INDEX, \"width\": $CAMERA_WIDTH, \"height\": $CAMERA_HEIGHT, \"fps\": $FPS, \"fourcc\": \"MJPG\"}}" \
     --fps="$FPS" \
     --task="$TASK" \
     --inference.type=rtc \
