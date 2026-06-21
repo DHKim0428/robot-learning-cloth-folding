@@ -107,7 +107,7 @@ def parse_args() -> argparse.Namespace:
         help="Enable follower cameras and fetch observations during teleoperation.",
     )
     parser.add_argument("--camera-name", nargs="+", default=["top", "wrist"], help="Camera name(s), e.g. front wrist.")
-    parser.add_argument("--camera-index", nargs="+", type=int, default=[2, 4], help="Camera index(es), e.g. 2 4.")
+    parser.add_argument("--camera-index", nargs="+", type=int, default=[0, 2], help="Camera index(es), e.g. 2 4.")
     parser.add_argument("--camera-width", type=int, default=640)
     parser.add_argument("--camera-height", type=int, default=480)
     parser.add_argument("--camera-fps", type=int, default=30)
