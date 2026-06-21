@@ -18,7 +18,7 @@ if [ -z "${POLICY_PATH:-}" ]; then
     if [ -d "checkpoints/smolvla_HQ" ]; then
         POLICY_PATH="checkpoints/smolvla_HQ"
     else
-        POLICY_PATH="robot-learning-team43/smolvla_HQ"
+        POLICY_PATH="klrshak/smolvla_HQ_wrist"
     fi
 fi
 TASK="${TASK:-SO101 teleoperation task}"
