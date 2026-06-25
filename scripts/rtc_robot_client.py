@@ -85,6 +85,13 @@ def _build_robot_config(args: argparse.Namespace):
             fps=args.camera_fps or args.fps,
         )
     }
+    if args.camera2_name and args.camera2_index is not None:
+        cameras[args.camera2_name] = OpenCVCameraConfig(
+            index_or_path=_coerce_camera_index(str(args.camera2_index)),
+            width=args.camera_width,
+            height=args.camera_height,
+            fps=args.camera_fps or args.fps,
+        )
     if args.robot_type != "so101_follower":
         raise ValueError("This RTC client currently implements the requested so101_follower setup only.")
     return SO101FollowerConfig(
@@ -150,6 +157,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--camera-width", type=int, default=640)
     parser.add_argument("--camera-height", type=int, default=480)
     parser.add_argument("--camera-fps", type=int, default=None)
+    parser.add_argument("--camera2-name", default=None)
+    parser.add_argument("--camera2-index", default=None)
     parser.add_argument("--fps", type=float, default=30.0)
     parser.add_argument("--task", default="SO101 teleoperation task")
     parser.add_argument("--refill-threshold", type=int, default=5)
