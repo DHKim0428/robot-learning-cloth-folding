@@ -10,7 +10,7 @@ ROBOT_PORT="${ROBOT_PORT:-/dev/ttyACM0}"
 ROBOT_ID="${ROBOT_ID:-follower}"
 CALIBRATION_DIR="${CALIBRATION_DIR:-config/calibration/robots/so_follower}"
 CAMERA_NAME="${CAMERA_NAME:-camera1}"
-CAMERA_INDEX="${CAMERA_INDEX:-4}"
+CAMERA_INDEX="${CAMERA_INDEX:-2}"
 CAMERA_WIDTH="${CAMERA_WIDTH:-640}"
 CAMERA_HEIGHT="${CAMERA_HEIGHT:-480}"
 FPS="${FPS:-30}"
@@ -22,7 +22,7 @@ if [ -z "${POLICY_PATH:-}" ]; then
     fi
 fi
 TASK="${TASK:-SO101 teleoperation task}"
-EXECUTION_HORIZON="${EXECUTION_HORIZON:-10}"
+EXECUTION_HORIZON="${EXECUTION_HORIZON:-20}"
 
 python scripts/goto_start_pose2.py --port "$ROBOT_PORT"
 
