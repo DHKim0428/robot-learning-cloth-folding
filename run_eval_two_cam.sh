@@ -26,7 +26,7 @@ elif [ -z "${POLICY_PATH:-}" ]; then
         POLICY_PATH="klrshak/smolvla_HQ_two_cam"
     fi
 fi
-TASK="${TASK:-SO101 teleoperation task}"
+TASK="${TASK:-Fold the cloth twice diagonally}"
 EXECUTION_HORIZON="${EXECUTION_HORIZON:-10}"
 
 python scripts/goto_start_pose2.py --port "$ROBOT_PORT"
